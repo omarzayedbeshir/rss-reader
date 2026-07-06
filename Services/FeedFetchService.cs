@@ -62,8 +62,11 @@ public class FeedFetchService
     {
         if (string.IsNullOrEmpty(html)) return html;
         var decoded = WebUtility.HtmlDecode(html);
-        var noTags = Regex.Replace(decoded, "<[^>]*>", "");
-        return Regex.Replace(noTags, @"\s+", " ").Trim();
+        decoded = Regex.Replace(decoded, @"</(p|div|h[1-6]|li|tr|section|article|blockquote)>", "\n\n");
+        decoded = Regex.Replace(decoded, @"<(br|hr)\s*/?>", "\n");
+        decoded = Regex.Replace(decoded, "<[^>]*>", "");
+        decoded = Regex.Replace(decoded, @"\n{3,}", "\n\n");
+        return decoded.Trim();
     }
 }
 
