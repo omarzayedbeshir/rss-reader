@@ -38,18 +38,31 @@ public class FeedFetchService
             LastRefreshed = DateTime.UtcNow
         };
 
-        feed.Articles = syndicationFeed.Items.Select(item => new Article
+        feed.Articles = syndicationFeed.Items.Select(item =>
         {
-            Title = Sanitize(item.Title?.Text ?? "Untitled"),
-            Url = Sanitize(item.Links.FirstOrDefault()?.Uri?.ToString() ?? string.Empty),
-            Summary = StripHtml((item.Summary?.Text ?? string.Empty).Truncate(500)),
-            Published = item.PublishDate.UtcDateTime == default
-                ? DateTime.UtcNow
-                : item.PublishDate.UtcDateTime,
-            FeedId = feed.Id
+            var summary = item.Summary?.Text;
+            if (string.IsNullOrWhiteSpace(summary) && item.Content is TextSyndicationContent content)
+                summary = content.Text;
+
+            return new Article
+            {
+                Title = Sanitize(item.Title?.Text ?? "Untitled"),
+                Url = Sanitize(item.Links.FirstOrDefault()?.Uri?.ToString() ?? string.Empty),
+                Summary = StripHtml((summary ?? string.Empty).Truncate(500)),
+                Published = GetPublishedDate(item),
+                FeedId = feed.Id
+            };
         }).ToList();
 
         return feed;
+    }
+
+    private static DateTime GetPublishedDate(SyndicationItem item)
+    {
+        var date = item.PublishDate;
+        if (date == DateTimeOffset.MinValue)
+            date = item.LastUpdatedTime;
+        return date.UtcDateTime == default ? DateTime.UtcNow : date.UtcDateTime;
     }
 
     private string Sanitize(string html)
