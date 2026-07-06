@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSS Reader</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <h1 class="header-title">RSS Reader</h1>
+            <div class="header-actions">
+                <button id="add-feed-btn" class="btn btn-primary">Add Feed</button>
+            </div>
+        </header>
+
+        <div id="add-feed-form" class="add-feed-form hidden">
+            <form id="feed-form">
+                <input type="url" id="feed-url" class="input" placeholder="https://example.com/rss" required>
+                <button type="submit" class="btn btn-primary">Subscribe</button>
+                <button type="button" id="cancel-add-btn" class="btn btn-secondary">Cancel</button>
+            </form>
+        </div>
+
+        <div class="layout">
+            <aside class="sidebar" id="sidebar">
+                <h2 class="sidebar-title">Feeds</h2>
+                <ul id="feed-list" class="feed-list"></ul>
+            </aside>
+
+            <main class="content" id="content">
+                <div id="loading" class="loading">Loading articles...</div>
+                <div id="error" class="error hidden"></div>
+                <div id="empty" class="empty hidden">
+                    <p>No feeds subscribed yet.</p>
+                    <p>Click "Add Feed" to get started.</p>
+                </div>
+                <div id="article-list" class="article-list"></div>
+            </main>
+        </div>
+    </div>
+
+    <template id="feed-item-template">
+        <li class="feed-item">
+            <span class="feed-item-title"></span>
+            <span class="feed-item-count"></span>
+            <button class="feed-item-refresh" title="Refresh feed"></button>
+            <button class="feed-item-remove" title="Remove feed"></button>
+        </li>
+    </template>
+
+    <template id="article-card-template">
+        <article class="article-card">
+            <div class="article-header">
+                <span class="article-feed-badge"></span>
+                <span class="article-date"></span>
+            </div>
+            <h2 class="article-title"></h2>
+            <p class="article-summary"></p>
+            <a class="article-link" target="_blank" rel="noopener noreferrer">Read more</a>
+        </article>
+    </template>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

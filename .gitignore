@@ -1,0 +1,15 @@
+bin/
+obj/
+publish/
+*.user
+*.suo
+*.cache
+*.db
+*.log
+.vs/
+.vscode/
+.idea/
+Data/
+.DS_Store
+*~
+*.swp
