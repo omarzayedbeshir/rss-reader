@@ -1,5 +1,6 @@
 using System.Net;
 using System.ServiceModel.Syndication;
+using System.Text.RegularExpressions;
 using System.Xml;
 using Ganss.Xss;
 using RssReader.Models;
@@ -41,7 +42,7 @@ public class FeedFetchService
         {
             Title = Sanitize(item.Title?.Text ?? "Untitled"),
             Url = Sanitize(item.Links.FirstOrDefault()?.Uri?.ToString() ?? string.Empty),
-            Summary = Sanitize((item.Summary?.Text ?? string.Empty).Truncate(500)),
+            Summary = StripHtml((item.Summary?.Text ?? string.Empty).Truncate(500)),
             Published = item.PublishDate.UtcDateTime == default
                 ? DateTime.UtcNow
                 : item.PublishDate.UtcDateTime,
@@ -55,6 +56,14 @@ public class FeedFetchService
     {
         var sanitized = _sanitizer.Sanitize(html);
         return WebUtility.HtmlDecode(sanitized);
+    }
+
+    private static string StripHtml(string html)
+    {
+        if (string.IsNullOrEmpty(html)) return html;
+        var decoded = WebUtility.HtmlDecode(html);
+        var noTags = Regex.Replace(decoded, "<[^>]*>", "");
+        return Regex.Replace(noTags, @"\s+", " ").Trim();
     }
 }
 

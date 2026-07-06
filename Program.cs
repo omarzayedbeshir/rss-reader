@@ -97,6 +97,8 @@ api.MapPost("/{id}/refresh", async (string id, FeedStorageService storage, FeedF
     {
         var updatedFeed = await fetcher.FetchFeedAsync(existingFeed.FeedUrl);
         updatedFeed.Id = existingFeed.Id;
+        foreach (var article in updatedFeed.Articles)
+            article.FeedId = existingFeed.Id;
         updatedFeed = storage.UpdateFeed(updatedFeed);
         var response = MapFeedResponse(updatedFeed);
         return Results.Ok(response);
