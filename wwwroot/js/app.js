@@ -2,7 +2,10 @@ const state = {
     feeds: [],
     articles: [],
     selectedFeedId: null,
-    loading: false
+    loading: false,
+    currentPage: 1,
+    totalPages: 1,
+    pageSize: 20
 };
 
 const elements = {
@@ -11,16 +14,26 @@ const elements = {
     loading: document.getElementById('loading'),
     error: document.getElementById('error'),
     empty: document.getElementById('empty'),
+    refreshAllBtn: document.getElementById('refresh-all-btn'),
     addFeedBtn: document.getElementById('add-feed-btn'),
     addFeedForm: document.getElementById('add-feed-form'),
     feedForm: document.getElementById('feed-form'),
     feedUrlInput: document.getElementById('feed-url'),
     cancelAddBtn: document.getElementById('cancel-add-btn'),
     feedItemTemplate: document.getElementById('feed-item-template'),
-    articleCardTemplate: document.getElementById('article-card-template')
+    articleCardTemplate: document.getElementById('article-card-template'),
+    pagination: document.getElementById('pagination'),
+    prevPageBtn: document.getElementById('prev-page-btn'),
+    nextPageBtn: document.getElementById('next-page-btn'),
+    pageInfo: document.getElementById('page-info')
 };
 
 async function init() {
+    elements.refreshAllBtn.addEventListener('click', () => refreshAllFeeds());
+
+    elements.prevPageBtn.addEventListener('click', () => fetchFeeds(state.currentPage - 1));
+    elements.nextPageBtn.addEventListener('click', () => fetchFeeds(state.currentPage + 1));
+
     elements.addFeedBtn.addEventListener('click', () => {
         elements.addFeedForm.classList.remove('hidden');
         elements.feedUrlInput.focus();
@@ -40,23 +53,26 @@ async function init() {
         elements.feedUrlInput.value = '';
     });
 
-    await fetchFeeds();
+    await fetchFeeds(1);
 }
 
-async function fetchFeeds() {
+async function fetchFeeds(page = state.currentPage) {
     showLoading();
     hideError();
 
     try {
-        const response = await fetch('/api/feeds');
+        const response = await fetch(`/api/feeds?page=${page}&pageSize=${state.pageSize}`);
         if (!response.ok) throw new Error(`Server error: ${response.status}`);
 
         const data = await response.json();
         state.feeds = data.feeds || [];
         state.articles = data.articles || [];
+        state.currentPage = data.page;
+        state.totalPages = data.totalPages;
 
         renderFeeds();
         renderArticles();
+        renderPagination();
     } catch (err) {
         showError(err.message);
     } finally {
@@ -80,7 +96,7 @@ async function addFeed(url) {
             throw new Error(err.error || 'Failed to add feed');
         }
 
-        await fetchFeeds();
+        await fetchFeeds(1);
     } catch (err) {
         showError(err.message);
     }
@@ -104,25 +120,23 @@ async function removeFeed(id) {
             state.selectedFeedId = null;
         }
 
-        await fetchFeeds();
+        await fetchFeeds(1);
     } catch (err) {
         showError(err.message);
     }
 }
 
-async function refreshFeed(id) {
+async function refreshAllFeeds() {
+    if (state.feeds.length === 0) return;
+
     showLoading();
     hideError();
 
     try {
-        const response = await fetch(`/api/feeds/${id}/refresh`, { method: 'POST' });
-
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || 'Failed to refresh feed');
-        }
-
-        await fetchFeeds();
+        await Promise.all(state.feeds.map(feed =>
+            fetch(`/api/feeds/${feed.id}/refresh`, { method: 'POST' })
+        ));
+        await fetchFeeds(1);
     } catch (err) {
         showError(err.message);
     }
@@ -136,7 +150,6 @@ function renderFeeds() {
         const li = template.querySelector('.feed-item');
         const titleEl = template.querySelector('.feed-item-title');
         const countEl = template.querySelector('.feed-item-count');
-        const refreshBtn = template.querySelector('.feed-item-refresh');
         const removeBtn = template.querySelector('.feed-item-remove');
 
         titleEl.textContent = feed.title || feed.feedUrl;
@@ -147,15 +160,9 @@ function renderFeeds() {
         }
 
         li.addEventListener('click', (e) => {
-            if (e.target === refreshBtn || e.target === removeBtn) return;
+            if (e.target === removeBtn) return;
             state.selectedFeedId = state.selectedFeedId === feed.id ? null : feed.id;
-            renderFeeds();
-            renderArticles();
-        });
-
-        refreshBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            refreshFeed(feed.id);
+            fetchFeeds(1);
         });
 
         removeBtn.addEventListener('click', (e) => {
@@ -190,18 +197,34 @@ function renderArticles() {
         const template = elements.articleCardTemplate.content.cloneNode(true);
         const badgeEl = template.querySelector('.article-feed-badge');
         const dateEl = template.querySelector('.article-date');
-        const titleEl = template.querySelector('.article-title');
+        const titleLinkEl = template.querySelector('.article-title-link');
         const summaryEl = template.querySelector('.article-summary');
-        const linkEl = template.querySelector('.article-link');
 
         badgeEl.textContent = feedTitle;
         dateEl.textContent = formatDate(article.published);
-        titleEl.textContent = article.title;
-        summaryEl.textContent = article.summary;
-        linkEl.href = article.url;
+        titleLinkEl.textContent = article.title;
+        titleLinkEl.href = article.url;
+
+        summaryEl.innerHTML = article.summary;
+        summaryEl.querySelectorAll('a').forEach(a => {
+            a.setAttribute('target', '_blank');
+            a.setAttribute('rel', 'noopener noreferrer');
+        });
 
         elements.articleList.appendChild(template);
     });
+}
+
+function renderPagination() {
+    if (state.totalPages <= 1) {
+        elements.pagination.classList.add('hidden');
+        return;
+    }
+
+    elements.pagination.classList.remove('hidden');
+    elements.pageInfo.textContent = `Page ${state.currentPage} of ${state.totalPages}`;
+    elements.prevPageBtn.disabled = state.currentPage <= 1;
+    elements.nextPageBtn.disabled = state.currentPage >= state.totalPages;
 }
 
 function formatDate(dateString) {

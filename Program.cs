@@ -21,10 +21,13 @@ app.UseStaticFiles();
 
 var api = app.MapGroup("/api/feeds");
 
-api.MapGet("/", (FeedStorageService storage) =>
+api.MapGet("/", (FeedStorageService storage, int? page, int? pageSize) =>
 {
+    var p = Math.Max(1, page ?? 1);
+    var ps = Math.Clamp(pageSize ?? 20, 1, 100);
+
     var feeds = storage.GetAllFeeds();
-    var articles = feeds
+    var allArticles = feeds
         .SelectMany(f => f.Articles.Select(a => new ArticleResponse(
             a.Id,
             a.Title,
@@ -35,6 +38,10 @@ api.MapGet("/", (FeedStorageService storage) =>
         )))
         .OrderByDescending(a => a.Published)
         .ToList();
+
+    var totalCount = allArticles.Count;
+    var totalPages = (int)Math.Ceiling(totalCount / (double)ps);
+    var pagedArticles = allArticles.Skip((p - 1) * ps).Take(ps).ToList();
 
     var feedResponses = feeds.Select(f => new FeedResponse(
         f.Id,
@@ -53,7 +60,16 @@ api.MapGet("/", (FeedStorageService storage) =>
         )).ToList()
     )).ToList();
 
-    return Results.Ok(new { feeds = feedResponses, articles });
+    return Results.Ok(new
+    {
+        feeds = feedResponses,
+        articles = pagedArticles,
+        page = p,
+        pageSize = ps,
+        totalCount,
+        totalPages,
+        hasMore = p < totalPages
+    });
 });
 
 api.MapPost("/", async (FeedAddRequest request, FeedStorageService storage, FeedFetchService fetcher) =>

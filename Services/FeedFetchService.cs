@@ -16,6 +16,11 @@ public class FeedFetchService
     {
         _httpClientFactory = httpClientFactory;
         _sanitizer = new HtmlSanitizer();
+        _sanitizer.AllowedTags.Add("img");
+        _sanitizer.AllowedTags.Add("figure");
+        _sanitizer.AllowedTags.Add("figcaption");
+        _sanitizer.AllowedAttributes.Add("src");
+        _sanitizer.AllowedAttributes.Add("alt");
     }
 
     public async Task<Feed> FetchFeedAsync(string url)
@@ -48,7 +53,7 @@ public class FeedFetchService
             {
                 Title = Sanitize(item.Title?.Text ?? "Untitled"),
                 Url = Sanitize(item.Links.FirstOrDefault()?.Uri?.ToString() ?? string.Empty),
-                Summary = StripHtml((summary ?? string.Empty).Truncate(500)),
+                Summary = Sanitize(summary ?? string.Empty),
                 Published = GetPublishedDate(item),
                 FeedId = feed.Id
             };
@@ -71,7 +76,7 @@ public class FeedFetchService
         return WebUtility.HtmlDecode(sanitized);
     }
 
-    private static string StripHtml(string html)
+    public static string StripHtml(string html)
     {
         if (string.IsNullOrEmpty(html)) return html;
         var decoded = WebUtility.HtmlDecode(html);

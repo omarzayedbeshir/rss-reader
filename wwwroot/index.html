@@ -11,6 +11,7 @@
         <header class="header">
             <h1 class="header-title">RSS Reader</h1>
             <div class="header-actions">
+                <button id="refresh-all-btn" class="btn btn-secondary" title="Refresh all feeds">Refresh All</button>
                 <button id="add-feed-btn" class="btn btn-primary">Add Feed</button>
             </div>
         </header>
@@ -24,8 +25,7 @@
         </div>
 
         <div class="layout">
-            <aside class="sidebar" id="sidebar">
-                <h2 class="sidebar-title">Feeds</h2>
+            <aside class="feed-bar" id="sidebar">
                 <ul id="feed-list" class="feed-list"></ul>
             </aside>
 
@@ -37,6 +37,11 @@
                     <p>Click "Add Feed" to get started.</p>
                 </div>
                 <div id="article-list" class="article-list"></div>
+                <div id="pagination" class="pagination hidden">
+                    <button id="prev-page-btn" class="btn btn-page" disabled>Prev</button>
+                    <span id="page-info" class="page-info"></span>
+                    <button id="next-page-btn" class="btn btn-page" disabled>Next</button>
+                </div>
             </main>
         </div>
     </div>
@@ -45,7 +50,6 @@
         <li class="feed-item">
             <span class="feed-item-title"></span>
             <span class="feed-item-count"></span>
-            <button class="feed-item-refresh" title="Refresh feed"></button>
             <button class="feed-item-remove" title="Remove feed"></button>
         </li>
     </template>
@@ -56,9 +60,8 @@
                 <span class="article-feed-badge"></span>
                 <span class="article-date"></span>
             </div>
-            <h2 class="article-title"></h2>
+            <h2 class="article-title"><a class="article-title-link" target="_blank" rel="noopener noreferrer"></a></h2>
             <p class="article-summary"></p>
-            <a class="article-link" target="_blank" rel="noopener noreferrer">Read more</a>
         </article>
     </template>
 
