@@ -131,6 +131,18 @@ async function removeFeed(id) {
     }
 }
 
+async function refreshFeed(id) {
+    showLoading();
+    hideError();
+
+    try {
+        await fetch(`/api/feeds/${id}/refresh`, { method: 'POST' });
+        await fetchFeeds(1);
+    } catch (err) {
+        showError(err.message);
+    }
+}
+
 async function refreshAllFeeds() {
     if (state.feeds.length === 0) return;
 
@@ -155,6 +167,7 @@ function renderFeeds() {
         const li = template.querySelector('.feed-item');
         const titleEl = template.querySelector('.feed-item-title');
         const countEl = template.querySelector('.feed-item-count');
+        const refreshBtn = template.querySelector('.feed-item-refresh');
         const removeBtn = template.querySelector('.feed-item-remove');
 
         titleEl.textContent = feed.title || feed.feedUrl;
@@ -165,9 +178,14 @@ function renderFeeds() {
         }
 
         li.addEventListener('click', (e) => {
-            if (e.target === removeBtn) return;
+            if (e.target === refreshBtn || e.target === removeBtn) return;
             state.selectedFeedId = state.selectedFeedId === feed.id ? null : feed.id;
             fetchFeeds(1);
+        });
+
+        refreshBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            refreshFeed(feed.id);
         });
 
         removeBtn.addEventListener('click', (e) => {

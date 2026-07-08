@@ -165,6 +165,7 @@ body {
     opacity: 0.6;
 }
 
+.feed-item-refresh,
 .feed-item-remove {
     background: none;
     border: none;
@@ -177,8 +178,14 @@ body {
     font-family: var(--font-sans);
 }
 
+.feed-item:hover .feed-item-refresh,
 .feed-item:hover .feed-item-remove {
     opacity: 0.6;
+}
+
+.feed-item-refresh:hover {
+    opacity: 1;
+    color: var(--color-accent);
 }
 
 .feed-item-remove:hover {
@@ -186,12 +193,21 @@ body {
     color: var(--color-danger);
 }
 
+.feed-item-refresh::before {
+    content: "\21bb";
+}
+
 .feed-item-remove::before {
     content: "\00d7";
 }
 
+.feed-item.active .feed-item-refresh,
 .feed-item.active .feed-item-remove {
     color: rgba(255, 255, 255, 0.7);
+}
+
+.feed-item.active .feed-item-refresh:hover {
+    color: #fff;
 }
 
 .feed-item.active .feed-item-remove:hover {
