@@ -61,7 +61,12 @@ async function fetchFeeds(page = state.currentPage) {
     hideError();
 
     try {
-        const response = await fetch(`/api/feeds?page=${page}&pageSize=${state.pageSize}`);
+        let url = `/api/feeds?page=${page}&pageSize=${state.pageSize}`;
+        if (state.selectedFeedId) {
+            url += `&feedId=${state.selectedFeedId}`;
+        }
+
+        const response = await fetch(url);
         if (!response.ok) throw new Error(`Server error: ${response.status}`);
 
         const data = await response.json();
@@ -177,11 +182,7 @@ function renderFeeds() {
 function renderArticles() {
     elements.articleList.innerHTML = '';
 
-    let articles = state.articles;
-
-    if (state.selectedFeedId) {
-        articles = state.articles.filter(a => a.feedId === state.selectedFeedId);
-    }
+    const articles = state.articles;
 
     if (articles.length === 0) {
         elements.empty.classList.remove('hidden');

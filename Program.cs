@@ -21,7 +21,7 @@ app.UseStaticFiles();
 
 var api = app.MapGroup("/api/feeds");
 
-api.MapGet("/", (FeedStorageService storage, int? page, int? pageSize) =>
+api.MapGet("/", (FeedStorageService storage, int? page, int? pageSize, string? feedId) =>
 {
     var p = Math.Max(1, page ?? 1);
     var ps = Math.Clamp(pageSize ?? 20, 1, 100);
@@ -38,6 +38,9 @@ api.MapGet("/", (FeedStorageService storage, int? page, int? pageSize) =>
         )))
         .OrderByDescending(a => a.Published)
         .ToList();
+
+    if (!string.IsNullOrWhiteSpace(feedId))
+        allArticles = allArticles.Where(a => a.FeedId == feedId).ToList();
 
     var totalCount = allArticles.Count;
     var totalPages = (int)Math.Ceiling(totalCount / (double)ps);

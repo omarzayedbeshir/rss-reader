@@ -38,7 +38,7 @@ public class FeedFetchService
         {
             Title = Sanitize(syndicationFeed.Title?.Text ?? url),
             FeedUrl = url,
-            SiteUrl = Sanitize(syndicationFeed.Links.FirstOrDefault()?.Uri?.ToString() ?? url),
+            SiteUrl = SanitizeUrl(syndicationFeed.Links.FirstOrDefault()?.Uri?.ToString() ?? url),
             Description = Sanitize(syndicationFeed.Description?.Text ?? string.Empty),
             LastRefreshed = DateTime.UtcNow
         };
@@ -52,7 +52,7 @@ public class FeedFetchService
             return new Article
             {
                 Title = Sanitize(item.Title?.Text ?? "Untitled"),
-                Url = Sanitize(item.Links.FirstOrDefault()?.Uri?.ToString() ?? string.Empty),
+                Url = SanitizeUrl(item.Links.FirstOrDefault()?.Uri?.ToString() ?? string.Empty),
                 Summary = Sanitize(summary ?? string.Empty),
                 Published = GetPublishedDate(item),
                 FeedId = feed.Id
@@ -72,8 +72,16 @@ public class FeedFetchService
 
     private string Sanitize(string html)
     {
-        var sanitized = _sanitizer.Sanitize(html);
-        return WebUtility.HtmlDecode(sanitized);
+        var decoded = WebUtility.HtmlDecode(html);
+        return _sanitizer.Sanitize(decoded);
+    }
+
+    private string SanitizeUrl(string url)
+    {
+        var sanitized = Sanitize(url);
+        if (Uri.TryCreate(sanitized, UriKind.Absolute, out var uri))
+            return (uri.Scheme == "http" || uri.Scheme == "https") ? uri.ToString() : string.Empty;
+        return sanitized;
     }
 
     public static string StripHtml(string html)
