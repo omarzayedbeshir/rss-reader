@@ -173,6 +173,10 @@ function renderFeeds() {
         titleEl.textContent = feed.title || feed.feedUrl;
         countEl.textContent = feed.articles ? feed.articles.length : 0;
 
+        if (isRtl(feed.title)) {
+            li.setAttribute('dir', 'rtl');
+        }
+
         if (state.selectedFeedId === feed.id) {
             li.classList.add('active');
         }
@@ -214,6 +218,7 @@ function renderArticles() {
         const feedTitle = feed ? feed.title : 'Unknown';
 
         const template = elements.articleCardTemplate.content.cloneNode(true);
+        const articleEl = template.querySelector('.article-card');
         const badgeEl = template.querySelector('.article-feed-badge');
         const dateEl = template.querySelector('.article-date');
         const titleLinkEl = template.querySelector('.article-title-link');
@@ -223,6 +228,11 @@ function renderArticles() {
         dateEl.textContent = formatDate(article.published);
         titleLinkEl.textContent = article.title;
         titleLinkEl.href = article.url;
+
+        if (isRtl(article.title) || isRtl(article.summary)) {
+            articleEl.setAttribute('dir', 'rtl');
+            summaryEl.setAttribute('dir', 'rtl');
+        }
 
         summaryEl.innerHTML = article.summary;
         summaryEl.querySelectorAll('a').forEach(a => {
@@ -244,6 +254,11 @@ function renderPagination() {
     elements.pageInfo.textContent = `Page ${state.currentPage} of ${state.totalPages}`;
     elements.prevPageBtn.disabled = state.currentPage <= 1;
     elements.nextPageBtn.disabled = state.currentPage >= state.totalPages;
+}
+
+function isRtl(text) {
+    if (!text) return false;
+    return /[\u0591-\u08FF\uFB1D-\uFDFD\uFE70-\uFEFC]/.test(text);
 }
 
 function formatDate(dateString) {

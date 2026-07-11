@@ -36,7 +36,7 @@ public class FeedFetchService
 
         var feed = new Feed
         {
-            Title = Sanitize(syndicationFeed.Title?.Text ?? url),
+            Title = SanitizeText(syndicationFeed.Title?.Text ?? url),
             FeedUrl = url,
             SiteUrl = SanitizeUrl(syndicationFeed.Links.FirstOrDefault()?.Uri?.ToString() ?? url),
             Description = Sanitize(syndicationFeed.Description?.Text ?? string.Empty),
@@ -51,7 +51,7 @@ public class FeedFetchService
 
             return new Article
             {
-                Title = Sanitize(item.Title?.Text ?? "Untitled"),
+                Title = SanitizeText(item.Title?.Text ?? "Untitled"),
                 Url = SanitizeUrl(item.Links.FirstOrDefault()?.Uri?.ToString() ?? string.Empty),
                 Summary = Sanitize(summary ?? string.Empty),
                 Published = GetPublishedDate(item),
@@ -74,6 +74,13 @@ public class FeedFetchService
     {
         var decoded = WebUtility.HtmlDecode(html);
         return _sanitizer.Sanitize(decoded);
+    }
+
+    private string SanitizeText(string html)
+    {
+        var sanitized = Sanitize(html);
+        var decoded = WebUtility.HtmlDecode(sanitized);
+        return Regex.Replace(decoded, "<[^>]*>", "").Trim();
     }
 
     private string SanitizeUrl(string url)

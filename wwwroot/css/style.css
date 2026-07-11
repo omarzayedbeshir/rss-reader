@@ -383,6 +383,23 @@ body {
     text-decoration: underline;
 }
 
+/* RTL support */
+[dir="rtl"].article-summary {
+    text-align: right;
+}
+
+[dir="rtl"].article-summary ul,
+[dir="rtl"].article-summary ol {
+    padding-left: 0;
+    padding-right: 1.5rem;
+}
+
+[dir="rtl"].article-summary blockquote {
+    border-left: none;
+    border-right: 3px solid var(--color-divider);
+    padding: 0.3rem 1rem 0.3rem 0;
+}
+
 .pagination {
     display: flex;
     align-items: center;
