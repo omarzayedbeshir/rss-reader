@@ -8,8 +8,8 @@
 </head>
 <body>
     <div id="auth-view" class="auth-view">
+        <button class="lang-toggle-btn btn-link" type="button"></button>
         <div class="auth-card">
-            <button class="lang-toggle-btn btn-link" type="button"></button>
             <h1 class="auth-title">RSS Reader</h1>
             <p class="auth-subtitle">Sign in or create an account</p>
             <form id="auth-form" class="auth-form">
@@ -31,6 +31,7 @@
     </div>
 
     <div id="app-view" class="hidden">
+        <button class="lang-toggle-btn btn-link" type="button"></button>
         <div class="app">
             <header class="header">
                 <h1 class="header-title">RSS Reader</h1>
@@ -40,7 +41,6 @@
                     <button id="refresh-all-btn" class="btn btn-secondary" title="Refresh all feeds">Refresh All</button>
                     <button id="add-feed-btn" class="btn btn-primary">Add Feed</button>
                 </div>
-                <button class="lang-toggle-btn btn-link header-lang" type="button"></button>
             </header>
 
             <div id="add-feed-form" class="add-feed-form hidden">

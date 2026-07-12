@@ -264,6 +264,7 @@ function toggleAuthMode() {
 async function init() {
     if (state.token) elements.authView.classList.add('hidden');
 
+    document.querySelector('.auth-subtitle').textContent = t('authSubtitle');
     document.getElementById('auth-email').placeholder = t('emailPlaceholder');
     document.getElementById('auth-password').placeholder = t('passwordPlaceholder');
     document.getElementById('auth-submit').textContent = t('signIn');

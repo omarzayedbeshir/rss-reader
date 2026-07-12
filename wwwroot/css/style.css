@@ -69,6 +69,7 @@ body {
     border-radius: 6px;
     font-size: 0.8125rem;
     font-weight: 500;
+    line-height: 1.35;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
     font-family: var(--font-sans);
@@ -153,7 +154,6 @@ body {
 }
 
 .auth-card {
-    position: relative;
     width: 100%;
     max-width: 380px;
     text-align: center;
@@ -211,31 +211,25 @@ body {
 }
 
 .lang-toggle-btn {
-    position: absolute;
-    top: 12px;
-    right: 16px;
+    position: fixed;
+    top: 16px;
+    right: 20px;
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 0.78rem;
+    font-size: 0.82rem;
     font-family: var(--font-sans);
     color: var(--color-text-muted);
     text-decoration: none;
-    padding: 4px 8px;
 }
 
 .lang-toggle-btn:hover {
     color: var(--color-text);
 }
 
-.header-lang {
-    font-size: 0.75rem;
-    flex-shrink: 0;
-}
-
 [dir="rtl"] .lang-toggle-btn {
     right: auto;
-    left: 16px;
+    left: 20px;
 }
 
 /* Feed */
