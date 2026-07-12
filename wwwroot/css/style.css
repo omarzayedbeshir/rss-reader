@@ -42,6 +42,8 @@ body {
     padding: 24px 0;
     border-bottom: 1px solid var(--color-divider);
     margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .header-title {
@@ -49,6 +51,13 @@ body {
     font-size: 1.6rem;
     font-weight: 700;
     color: var(--color-text);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .btn {
@@ -85,6 +94,27 @@ body {
     background: var(--color-chip-bg);
 }
 
+.btn-link {
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    cursor: pointer;
+    font-size: inherit;
+    font-family: inherit;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.btn-link:hover {
+    color: var(--color-accent-hover);
+}
+
+.current-user {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
 .add-feed-form {
     padding: 12px 0;
     margin-bottom: 16px;
@@ -113,6 +143,65 @@ body {
     box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.1);
 }
 
+/* Auth */
+.auth-view {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+}
+
+.auth-title {
+    font-family: var(--font-serif);
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.auth-subtitle {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    margin-bottom: 28px;
+}
+
+.auth-form {
+    text-align: left;
+}
+
+.auth-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.auth-submit {
+    width: 100%;
+    margin-top: 8px;
+    justify-content: center;
+}
+
+.auth-error {
+    color: var(--color-danger);
+    font-size: 0.85rem;
+    margin-top: 8px;
+    text-align: center;
+}
+
+.auth-toggle {
+    margin-top: 16px;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    text-align: center;
+}
+
+/* Feed */
 .feed-bar {
     padding: 8px 0 16px 0;
 }
@@ -452,6 +541,7 @@ body {
     .header-actions {
         display: flex;
         gap: 8px;
+        flex-wrap: wrap;
     }
 
     .btn {
@@ -497,5 +587,17 @@ body {
     .error,
     .empty {
         padding: 50px 12px;
+    }
+
+    .auth-view {
+        padding: 16px;
+    }
+
+    .auth-card {
+        max-width: none;
+    }
+
+    .auth-title {
+        font-size: 1.5rem;
     }
 }

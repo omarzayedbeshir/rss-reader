@@ -20,3 +20,8 @@ public record ArticleResponse(
     DateTime Published,
     string FeedId
 );
+
+public record SignUpRequest(string Username, string Password);
+public record SignInRequest(string Username, string Password);
+public record AuthResponse(string Token, UserResponse User);
+public record UserResponse(string Id, string Username);

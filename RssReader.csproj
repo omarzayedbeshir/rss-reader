@@ -12,6 +12,10 @@
   <ItemGroup>
     <PackageReference Include="System.ServiceModel.Syndication" Version="9.*" />
     <PackageReference Include="HtmlSanitizer" Version="9.*" />
+    <PackageReference Include="Npgsql" Version="9.*" />
+    <PackageReference Include="Dapper" Version="2.*" />
+    <PackageReference Include="BCrypt.Net-Next" Version="4.*" />
+    <PackageReference Include="DotNetEnv" Version="3.*" />
   </ItemGroup>
 
 </Project>

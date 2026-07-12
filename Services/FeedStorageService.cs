@@ -1,134 +1,124 @@
-using System.Text.Json;
+using Dapper;
+using Npgsql;
 using RssReader.Models;
 
 namespace RssReader.Services;
 
 public class FeedStorageService
 {
-    private readonly string _filePath;
-    private readonly JsonSerializerOptions _jsonOptions;
-    private readonly ReaderWriterLockSlim _lock = new();
-    private List<Feed> _feeds = new();
+    private readonly DatabaseService _db;
 
-    public FeedStorageService(string filePath)
+    public FeedStorageService(DatabaseService db)
     {
-        _filePath = filePath;
-        _jsonOptions = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-
-        if (File.Exists(_filePath))
-        {
-            var json = File.ReadAllText(_filePath);
-            _feeds = JsonSerializer.Deserialize<List<Feed>>(json, _jsonOptions) ?? new();
-        }
+        _db = db;
     }
 
-    public List<Feed> GetAllFeeds()
+    public async Task<List<Feed>> GetAllFeedsAsync(string userId)
     {
-        _lock.EnterReadLock();
-        try
+        using var conn = _db.OpenConnection();
+        var feeds = (await conn.QueryAsync<Feed>(
+            "SELECT id, user_id::text AS UserId, title, feed_url AS FeedUrl, site_url AS SiteUrl, " +
+            "description, last_refreshed AS LastRefreshed FROM feeds WHERE user_id = @UserId::uuid",
+            new { UserId = userId })).ToList();
+
+        foreach (var feed in feeds)
         {
-            return _feeds.Select(f => CloneFeed(f)).ToList();
+            feed.Articles = (await conn.QueryAsync<Article>(
+                "SELECT id, title, url, summary, published, feed_id AS FeedId " +
+                "FROM articles WHERE feed_id = @FeedId ORDER BY published DESC",
+                new { FeedId = feed.Id })).ToList();
         }
-        finally
-        {
-            _lock.ExitReadLock();
-        }
+
+        return feeds;
     }
 
-    public Feed? GetFeed(string id)
+    public async Task<Feed?> GetFeedAsync(string id, string userId)
     {
-        _lock.EnterReadLock();
-        try
+        using var conn = _db.OpenConnection();
+        var feed = await conn.QueryFirstOrDefaultAsync<Feed>(
+            "SELECT id, user_id::text AS UserId, title, feed_url AS FeedUrl, site_url AS SiteUrl, " +
+            "description, last_refreshed AS LastRefreshed FROM feeds WHERE id = @Id AND user_id = @UserId::uuid",
+            new { Id = id, UserId = userId });
+
+        if (feed is not null)
         {
-            var feed = _feeds.FirstOrDefault(f => f.Id == id);
-            return feed is not null ? CloneFeed(feed) : null;
+            feed.Articles = (await conn.QueryAsync<Article>(
+                "SELECT id, title, url, summary, published, feed_id AS FeedId " +
+                "FROM articles WHERE feed_id = @FeedId ORDER BY published DESC",
+                new { FeedId = feed.Id })).ToList();
         }
-        finally
-        {
-            _lock.ExitReadLock();
-        }
+
+        return feed;
     }
 
-    public Feed AddFeed(Feed feed)
+    public async Task<Feed> AddFeedAsync(Feed feed, string userId)
     {
-        _lock.EnterWriteLock();
-        try
+        feed.UserId = userId;
+
+        using var conn = _db.OpenConnection();
+        using var tx = conn.BeginTransaction();
+
+        await conn.ExecuteAsync(
+            "INSERT INTO feeds (id, user_id, title, feed_url, site_url, description, last_refreshed) " +
+            "VALUES (@Id, @UserId::uuid, @Title, @FeedUrl, @SiteUrl, @Description, @LastRefreshed)",
+            feed, tx);
+
+        if (feed.Articles.Count > 0)
         {
-            _feeds.Add(feed);
-            SaveUnsafe();
-            return CloneFeed(feed);
+            await InsertArticlesAsync(conn, feed.Articles, tx);
         }
-        finally
-        {
-            _lock.ExitWriteLock();
-        }
+
+        tx.Commit();
+        return feed;
     }
 
-    public void RemoveFeed(string id)
+    public async Task RemoveFeedAsync(string id, string userId)
     {
-        _lock.EnterWriteLock();
-        try
-        {
-            _feeds.RemoveAll(f => f.Id == id);
-            SaveUnsafe();
-        }
-        finally
-        {
-            _lock.ExitWriteLock();
-        }
+        using var conn = _db.OpenConnection();
+        await conn.ExecuteAsync(
+            "DELETE FROM feeds WHERE id = @Id AND user_id = @UserId::uuid",
+            new { Id = id, UserId = userId });
     }
 
-    public Feed UpdateFeed(Feed feed)
+    public async Task<Feed> UpdateFeedAsync(Feed feed, string userId)
     {
-        _lock.EnterWriteLock();
-        try
-        {
-            var index = _feeds.FindIndex(f => f.Id == feed.Id);
-            if (index == -1)
-                throw new KeyNotFoundException($"Feed with id {feed.Id} not found.");
+        using var conn = _db.OpenConnection();
+        using var tx = conn.BeginTransaction();
 
-            _feeds[index] = feed;
-            SaveUnsafe();
-            return CloneFeed(feed);
-        }
-        finally
+        var existing = await conn.QueryFirstOrDefaultAsync<Feed>(
+            "SELECT id FROM feeds WHERE id = @Id AND user_id = @UserId::uuid",
+            new { feed.Id, UserId = userId }, tx);
+
+        if (existing is null)
+            throw new KeyNotFoundException($"Feed with id {feed.Id} not found.");
+
+        await conn.ExecuteAsync(
+            "DELETE FROM articles WHERE feed_id = @FeedId", new { FeedId = feed.Id }, tx);
+
+        await conn.ExecuteAsync(
+            "UPDATE feeds SET title = @Title, site_url = @SiteUrl, description = @Description, " +
+            "last_refreshed = @LastRefreshed WHERE id = @Id AND user_id = @UserId::uuid",
+            feed, tx);
+
+        if (feed.Articles.Count > 0)
         {
-            _lock.ExitWriteLock();
+            foreach (var article in feed.Articles)
+                article.FeedId = feed.Id;
+            await InsertArticlesAsync(conn, feed.Articles, tx);
         }
+
+        tx.Commit();
+        return feed;
     }
 
-    private void SaveUnsafe()
+    private static async Task InsertArticlesAsync(NpgsqlConnection conn, List<Article> articles, NpgsqlTransaction tx)
     {
-        var json = JsonSerializer.Serialize(_feeds, _jsonOptions);
-        var dir = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-        File.WriteAllText(_filePath, json);
-    }
-
-    private static Feed CloneFeed(Feed feed)
-    {
-        return new Feed
+        foreach (var article in articles)
         {
-            Id = feed.Id,
-            Title = feed.Title,
-            FeedUrl = feed.FeedUrl,
-            SiteUrl = feed.SiteUrl,
-            Description = feed.Description,
-            LastRefreshed = feed.LastRefreshed,
-            Articles = feed.Articles.Select(a => new Article
-            {
-                Id = a.Id,
-                Title = a.Title,
-                Url = a.Url,
-                Summary = a.Summary,
-                Published = a.Published,
-                FeedId = a.FeedId
-            }).ToList()
-        };
+            await conn.ExecuteAsync(
+                "INSERT INTO articles (id, feed_id, title, url, summary, published) " +
+                "VALUES (@Id, @FeedId, @Title, @Url, @Summary, @Published)",
+                article, tx);
+        }
     }
 }

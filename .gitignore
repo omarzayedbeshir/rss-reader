@@ -10,6 +10,7 @@ publish/
 .vscode/
 .idea/
 Data/
+.env
 .DS_Store
 *~
 *.swp

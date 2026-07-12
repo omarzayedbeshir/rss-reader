@@ -5,10 +5,23 @@ const state = {
     loading: false,
     currentPage: 1,
     totalPages: 1,
-    pageSize: 20
+    pageSize: 20,
+    token: localStorage.getItem('token') || null,
+    username: localStorage.getItem('username') || null,
+    userId: localStorage.getItem('userId') || null
 };
 
 const elements = {
+    authView: document.getElementById('auth-view'),
+    appView: document.getElementById('app-view'),
+    authForm: document.getElementById('auth-form'),
+    authUsername: document.getElementById('auth-username'),
+    authPassword: document.getElementById('auth-password'),
+    authSubmit: document.getElementById('auth-submit'),
+    authToggleBtn: document.getElementById('auth-toggle-btn'),
+    authError: document.getElementById('auth-error'),
+    currentUser: document.getElementById('current-user'),
+    signoutBtn: document.getElementById('signout-btn'),
     feedList: document.getElementById('feed-list'),
     articleList: document.getElementById('article-list'),
     loading: document.getElementById('loading'),
@@ -28,9 +41,163 @@ const elements = {
     pageInfo: document.getElementById('page-info')
 };
 
-async function init() {
-    elements.refreshAllBtn.addEventListener('click', () => refreshAllFeeds());
+let authMode = 'signin';
 
+function authHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (state.token) {
+        headers['Authorization'] = 'Bearer ' + state.token;
+    }
+    return headers;
+}
+
+async function apiFetch(url, options = {}) {
+    options.headers = { ...authHeaders(), ...options.headers };
+    return fetch(url, options);
+}
+
+async function checkAuth() {
+    if (!state.token) {
+        showAuthView();
+        return;
+    }
+
+    try {
+        const response = await apiFetch('/api/auth/me');
+        if (!response.ok) {
+            clearAuth();
+            showAuthView();
+            return;
+        }
+        showAppView();
+    } catch {
+        clearAuth();
+        showAuthView();
+    }
+}
+
+function clearAuth() {
+    state.token = null;
+    state.username = null;
+    state.userId = null;
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    localStorage.removeItem('userId');
+}
+
+function showAuthView() {
+    elements.authView.classList.remove('hidden');
+    elements.appView.classList.add('hidden');
+}
+
+function showAppView() {
+    elements.authView.classList.add('hidden');
+    elements.appView.classList.remove('hidden');
+    elements.currentUser.textContent = state.username || '';
+    fetchFeeds(1);
+}
+
+async function signIn(username, password) {
+    const response = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error || 'Sign in failed.');
+    }
+
+    state.token = data.token;
+    state.username = data.user.username;
+    state.userId = data.user.id;
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('username', data.user.username);
+    localStorage.setItem('userId', data.user.id);
+    showAppView();
+}
+
+async function signUp(username, password) {
+    const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.error || 'Sign up failed.');
+    }
+
+    state.token = data.token;
+    state.username = data.user.username;
+    state.userId = data.user.id;
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('username', data.user.username);
+    localStorage.setItem('userId', data.user.id);
+    showAppView();
+}
+
+async function signOut() {
+    try {
+        await apiFetch('/api/auth/signout', { method: 'POST' });
+    } catch {}
+    clearAuth();
+    state.feeds = [];
+    state.articles = [];
+    state.selectedFeedId = null;
+    showAuthView();
+}
+
+function showAuthError(message) {
+    elements.authError.textContent = message;
+    elements.authError.classList.remove('hidden');
+}
+
+function hideAuthError() {
+    elements.authError.classList.add('hidden');
+}
+
+async function handleAuthSubmit(e) {
+    e.preventDefault();
+    hideAuthError();
+
+    const username = elements.authUsername.value.trim();
+    const password = elements.authPassword.value;
+
+    if (!username || !password) {
+        showAuthError('Username and password are required.');
+        return;
+    }
+
+    try {
+        if (authMode === 'signin') {
+            await signIn(username, password);
+        } else {
+            await signUp(username, password);
+        }
+    } catch (err) {
+        showAuthError(err.message);
+    }
+}
+
+function toggleAuthMode() {
+    authMode = authMode === 'signin' ? 'signup' : 'signin';
+    elements.authSubmit.textContent = authMode === 'signin' ? 'Sign In' : 'Sign Up';
+    elements.authToggleBtn.textContent = authMode === 'signin' ? 'Create an account' : 'Sign in instead';
+    hideAuthError();
+    elements.authPassword.value = '';
+}
+
+async function init() {
+    elements.authForm.addEventListener('submit', handleAuthSubmit);
+    elements.authToggleBtn.addEventListener('click', toggleAuthMode);
+    elements.signoutBtn.addEventListener('click', signOut);
+
+    elements.refreshAllBtn.addEventListener('click', () => refreshAllFeeds());
     elements.prevPageBtn.addEventListener('click', () => fetchFeeds(state.currentPage - 1));
     elements.nextPageBtn.addEventListener('click', () => fetchFeeds(state.currentPage + 1));
 
@@ -53,7 +220,7 @@ async function init() {
         elements.feedUrlInput.value = '';
     });
 
-    await fetchFeeds(1);
+    await checkAuth();
 }
 
 async function fetchFeeds(page = state.currentPage) {
@@ -61,13 +228,13 @@ async function fetchFeeds(page = state.currentPage) {
     hideError();
 
     try {
-        let url = `/api/feeds?page=${page}&pageSize=${state.pageSize}`;
+        let url = '/api/feeds?page=' + page + '&pageSize=' + state.pageSize;
         if (state.selectedFeedId) {
-            url += `&feedId=${state.selectedFeedId}`;
+            url += '&feedId=' + state.selectedFeedId;
         }
 
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Server error: ${response.status}`);
+        const response = await apiFetch(url);
+        if (!response.ok) throw new Error('Server error: ' + response.status);
 
         const data = await response.json();
         state.feeds = data.feeds || [];
@@ -90,9 +257,8 @@ async function addFeed(url) {
     hideError();
 
     try {
-        const response = await fetch('/api/feeds', {
+        const response = await apiFetch('/api/feeds', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url })
         });
 
@@ -114,7 +280,7 @@ async function removeFeed(id) {
     hideError();
 
     try {
-        const response = await fetch(`/api/feeds/${id}`, { method: 'DELETE' });
+        const response = await apiFetch('/api/feeds/' + id, { method: 'DELETE' });
 
         if (!response.ok) {
             const err = await response.json();
@@ -136,7 +302,7 @@ async function refreshFeed(id) {
     hideError();
 
     try {
-        await fetch(`/api/feeds/${id}/refresh`, { method: 'POST' });
+        await apiFetch('/api/feeds/' + id + '/refresh', { method: 'POST' });
         await fetchFeeds(1);
     } catch (err) {
         showError(err.message);
@@ -151,7 +317,7 @@ async function refreshAllFeeds() {
 
     try {
         await Promise.all(state.feeds.map(feed =>
-            fetch(`/api/feeds/${feed.id}/refresh`, { method: 'POST' })
+            apiFetch('/api/feeds/' + feed.id + '/refresh', { method: 'POST' })
         ));
         await fetchFeeds(1);
     } catch (err) {
@@ -251,7 +417,7 @@ function renderPagination() {
     }
 
     elements.pagination.classList.remove('hidden');
-    elements.pageInfo.textContent = `Page ${state.currentPage} of ${state.totalPages}`;
+    elements.pageInfo.textContent = 'Page ' + state.currentPage + ' of ' + state.totalPages;
     elements.prevPageBtn.disabled = state.currentPage <= 1;
     elements.nextPageBtn.disabled = state.currentPage >= state.totalPages;
 }
@@ -270,8 +436,8 @@ function formatDate(dateString) {
     const diffHours = Math.floor(diffMs / 3600000);
 
     if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffMins < 60) return diffMins + 'm ago';
+    if (diffHours < 24) return diffHours + 'h ago';
 
     return date.toLocaleDateString('en-US', {
         month: 'short',

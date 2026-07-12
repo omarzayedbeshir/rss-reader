@@ -7,42 +7,64 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <div class="app">
-        <header class="header">
-            <h1 class="header-title">RSS Reader</h1>
-            <div class="header-actions">
-                <button id="refresh-all-btn" class="btn btn-secondary" title="Refresh all feeds">Refresh All</button>
-                <button id="add-feed-btn" class="btn btn-primary">Add Feed</button>
-            </div>
-        </header>
-
-        <div id="add-feed-form" class="add-feed-form hidden">
-            <form id="feed-form">
-                <input type="url" id="feed-url" class="input" placeholder="https://example.com/rss" required>
-                <button type="submit" class="btn btn-primary">Subscribe</button>
-                <button type="button" id="cancel-add-btn" class="btn btn-secondary">Cancel</button>
+    <div id="auth-view" class="auth-view">
+        <div class="auth-card">
+            <h1 class="auth-title">RSS Reader</h1>
+            <p class="auth-subtitle">Sign in or create an account</p>
+            <form id="auth-form" class="auth-form">
+                <div class="auth-fields">
+                    <input id="auth-username" type="text" class="input" placeholder="Username" required autocomplete="username">
+                    <input id="auth-password" type="password" class="input" placeholder="Password" required autocomplete="current-password">
+                </div>
+                <div id="auth-error" class="auth-error hidden"></div>
+                <button id="auth-submit" type="submit" class="btn btn-primary auth-submit">Sign In</button>
+                <p class="auth-toggle">
+                    <button id="auth-toggle-btn" type="button" class="btn-link">Create an account</button>
+                </p>
             </form>
         </div>
+    </div>
 
-        <div class="layout">
-            <aside class="feed-bar" id="sidebar">
-                <ul id="feed-list" class="feed-list"></ul>
-            </aside>
+    <div id="app-view" class="hidden">
+        <div class="app">
+            <header class="header">
+                <h1 class="header-title">RSS Reader</h1>
+                <div class="header-actions">
+                    <span id="current-user" class="current-user"></span>
+                    <button id="signout-btn" class="btn btn-secondary">Sign Out</button>
+                    <button id="refresh-all-btn" class="btn btn-secondary" title="Refresh all feeds">Refresh All</button>
+                    <button id="add-feed-btn" class="btn btn-primary">Add Feed</button>
+                </div>
+            </header>
 
-            <main class="content" id="content">
-                <div id="loading" class="loading">Loading articles...</div>
-                <div id="error" class="error hidden"></div>
-                <div id="empty" class="empty hidden">
-                    <p>No feeds subscribed yet.</p>
-                    <p>Click "Add Feed" to get started.</p>
-                </div>
-                <div id="article-list" class="article-list"></div>
-                <div id="pagination" class="pagination hidden">
-                    <button id="prev-page-btn" class="btn btn-page" disabled>Prev</button>
-                    <span id="page-info" class="page-info"></span>
-                    <button id="next-page-btn" class="btn btn-page" disabled>Next</button>
-                </div>
-            </main>
+            <div id="add-feed-form" class="add-feed-form hidden">
+                <form id="feed-form">
+                    <input type="url" id="feed-url" class="input" placeholder="https://example.com/rss" required>
+                    <button type="submit" class="btn btn-primary">Subscribe</button>
+                    <button type="button" id="cancel-add-btn" class="btn btn-secondary">Cancel</button>
+                </form>
+            </div>
+
+            <div class="layout">
+                <aside class="feed-bar" id="sidebar">
+                    <ul id="feed-list" class="feed-list"></ul>
+                </aside>
+
+                <main class="content" id="content">
+                    <div id="loading" class="loading">Loading articles...</div>
+                    <div id="error" class="error hidden"></div>
+                    <div id="empty" class="empty hidden">
+                        <p>No feeds subscribed yet.</p>
+                        <p>Click "Add Feed" to get started.</p>
+                    </div>
+                    <div id="article-list" class="article-list"></div>
+                    <div id="pagination" class="pagination hidden">
+                        <button id="prev-page-btn" class="btn btn-page" disabled>Prev</button>
+                        <span id="page-info" class="page-info"></span>
+                        <button id="next-page-btn" class="btn btn-page" disabled>Next</button>
+                    </div>
+                </main>
+            </div>
         </div>
     </div>
 
