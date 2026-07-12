@@ -153,6 +153,7 @@ body {
 }
 
 .auth-card {
+    position: relative;
     width: 100%;
     max-width: 380px;
     text-align: center;
@@ -207,6 +208,34 @@ body {
     font-size: 0.85rem;
     color: var(--color-text-muted);
     text-align: center;
+}
+
+.lang-toggle-btn {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-family: var(--font-sans);
+    color: var(--color-text-muted);
+    text-decoration: none;
+    padding: 4px 8px;
+}
+
+.lang-toggle-btn:hover {
+    color: var(--color-text);
+}
+
+.header-lang {
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+[dir="rtl"] .lang-toggle-btn {
+    right: auto;
+    left: 16px;
 }
 
 /* Feed */
@@ -495,6 +524,22 @@ body {
     border-left: none;
     border-right: 3px solid var(--color-divider);
     padding: 0.3rem 1rem 0.3rem 0;
+}
+
+[dir="rtl"] .header {
+    direction: rtl;
+}
+
+[dir="rtl"] .header-actions {
+    direction: rtl;
+}
+
+[dir="rtl"] .input {
+    text-align: right;
+}
+
+[dir="rtl"] .auth-form {
+    text-align: right;
 }
 
 .pagination {

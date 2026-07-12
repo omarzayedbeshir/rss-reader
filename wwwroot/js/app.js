@@ -115,7 +115,7 @@ function showVerificationSent(email) {
     elements.authSubmit.style.display = 'none';
     elements.authToggleBtn.parentElement.style.display = 'none';
     elements.resendSection.style.display = '';
-    showAuthMessage('Verification email sent to ' + email + '. Check your inbox and click the link to verify.');
+    showAuthMessage(t('verificationSent', email));
 }
 
 async function signIn(email, password) {
@@ -128,7 +128,7 @@ async function signIn(email, password) {
     const data = await response.json();
 
     if (!response.ok) {
-        throw new Error(data.error || 'Sign in failed.');
+        throw new Error(data.error || t('signIn') + ' failed.');
     }
 
     state.token = data.token;
@@ -150,20 +150,20 @@ async function signUp(email, password) {
     const data = await response.json();
 
     if (!response.ok) {
-        throw new Error(data.error || 'Sign up failed.');
+        throw new Error(data.error || t('signUp') + ' failed.');
     }
 
     showVerificationSent(email);
     authMode = 'signin';
-    elements.authSubmit.textContent = 'Sign In';
-    elements.authToggleBtn.textContent = 'Create an account';
+    elements.authSubmit.textContent = t('signIn');
+    elements.authToggleBtn.textContent = t('createAccount');
     elements.authPassword.value = '';
 }
 
 async function resendVerification() {
     const email = elements.authEmail.value.trim();
     if (!email) {
-        showAuthError('Enter your email first.');
+        showAuthError(t('emailPasswordRequired'));
         return;
     }
 
@@ -182,7 +182,7 @@ async function resendVerification() {
 
         showVerificationSent(email);
     } catch (err) {
-        showAuthError(err.message);
+        showAuthError(tError(err.message));
     }
 }
 
@@ -218,10 +218,10 @@ function hideAuthMessage() {
 function checkVerifiedParam() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('verified') === '1') {
-        showAuthMessage('Email verified! You can now sign in.');
+        showAuthMessage(t('emailVerified'));
         window.history.replaceState({}, '', '/');
     } else if (params.get('verified') === '0') {
-        showAuthError('Invalid or expired verification link.');
+        showAuthError(t('invalidVerification'));
         window.history.replaceState({}, '', '/');
     }
     showAuthFields();
@@ -236,7 +236,7 @@ async function handleAuthSubmit(e) {
     const password = elements.authPassword.value;
 
     if (!email || !password) {
-        showAuthError('Email and password are required.');
+        showAuthError(t('emailPasswordRequired'));
         return;
     }
 
@@ -247,14 +247,14 @@ async function handleAuthSubmit(e) {
             await signUp(email, password);
         }
     } catch (err) {
-        showAuthError(err.message);
+        showAuthError(tError(err.message));
     }
 }
 
 function toggleAuthMode() {
     authMode = authMode === 'signin' ? 'signup' : 'signin';
-    elements.authSubmit.textContent = authMode === 'signin' ? 'Sign In' : 'Sign Up';
-    elements.authToggleBtn.textContent = authMode === 'signin' ? 'Create an account' : 'Sign in instead';
+    elements.authSubmit.textContent = authMode === 'signin' ? t('signIn') : t('signUp');
+    elements.authToggleBtn.textContent = authMode === 'signin' ? t('createAccount') : t('signInInstead');
     hideAuthError();
     hideAuthMessage();
     showAuthFields();
@@ -262,6 +262,21 @@ function toggleAuthMode() {
 }
 
 async function init() {
+    if (state.token) elements.authView.classList.add('hidden');
+
+    document.getElementById('auth-email').placeholder = t('emailPlaceholder');
+    document.getElementById('auth-password').placeholder = t('passwordPlaceholder');
+    document.getElementById('auth-submit').textContent = t('signIn');
+    document.getElementById('auth-toggle-btn').textContent = t('createAccount');
+    document.getElementById('signout-btn').textContent = t('signOut');
+    document.getElementById('refresh-all-btn').textContent = t('refreshAll');
+    document.getElementById('refresh-all-btn').title = t('refreshAll');
+    document.getElementById('add-feed-btn').textContent = t('addFeed');
+    document.getElementById('feed-url').placeholder = t('feedUrlPlaceholder');
+    document.getElementById('loading').textContent = t('loadingArticles');
+    document.getElementById('prev-page-btn').textContent = t('prev');
+    document.getElementById('next-page-btn').textContent = t('next');
+
     elements.authForm.addEventListener('submit', handleAuthSubmit);
     elements.authToggleBtn.addEventListener('click', toggleAuthMode);
     elements.resendVerificationBtn.addEventListener('click', resendVerification);
@@ -288,6 +303,11 @@ async function init() {
         await addFeed(url);
         elements.addFeedForm.classList.add('hidden');
         elements.feedUrlInput.value = '';
+    });
+
+    document.querySelectorAll('.lang-toggle-btn').forEach(function (btn) {
+        btn.textContent = t('langLabel');
+        btn.addEventListener('click', toggleLang);
     });
 
     await checkAuth();
@@ -334,7 +354,7 @@ async function addFeed(url) {
 
         if (!response.ok) {
             const err = await response.json();
-            throw new Error(err.error || 'Failed to add feed');
+            throw new Error(err.error || t('subscribe') + ' failed');
         }
 
         await fetchFeeds(1);
@@ -344,7 +364,7 @@ async function addFeed(url) {
 }
 
 async function removeFeed(id) {
-    if (!confirm('Remove this feed and all its articles?')) return;
+    if (!confirm(t('removeFeedConfirm'))) return;
 
     showLoading();
     hideError();
@@ -417,6 +437,9 @@ function renderFeeds() {
             li.classList.add('active');
         }
 
+        refreshBtn.title = t('refreshFeedTitle');
+        removeBtn.title = t('removeFeedTitle');
+
         li.addEventListener('click', (e) => {
             if (e.target === refreshBtn || e.target === removeBtn) return;
             state.selectedFeedId = state.selectedFeedId === feed.id ? null : feed.id;
@@ -443,6 +466,7 @@ function renderArticles() {
     const articles = state.articles;
 
     if (articles.length === 0) {
+        elements.empty.innerHTML = '<p>' + t('noFeeds') + '</p><p>' + t('clickAddFeed') + '</p>';
         elements.empty.classList.remove('hidden');
         return;
     }
@@ -451,7 +475,7 @@ function renderArticles() {
 
     articles.forEach(article => {
         const feed = state.feeds.find(f => f.id === article.feedId);
-        const feedTitle = feed ? feed.title : 'Unknown';
+        const feedTitle = feed ? feed.title : t('unknown');
 
         const template = elements.articleCardTemplate.content.cloneNode(true);
         const articleEl = template.querySelector('.article-card');
@@ -487,7 +511,7 @@ function renderPagination() {
     }
 
     elements.pagination.classList.remove('hidden');
-    elements.pageInfo.textContent = 'Page ' + state.currentPage + ' of ' + state.totalPages;
+    elements.pageInfo.textContent = t('pageOf', state.currentPage, state.totalPages);
     elements.prevPageBtn.disabled = state.currentPage <= 1;
     elements.nextPageBtn.disabled = state.currentPage >= state.totalPages;
 }
@@ -505,11 +529,11 @@ function formatDate(dateString) {
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return diffMins + 'm ago';
-    if (diffHours < 24) return diffHours + 'h ago';
+    if (diffMins < 1) return t('justNow');
+    if (diffMins < 60) return t('minutesAgo', diffMins);
+    if (diffHours < 24) return t('hoursAgo', diffHours);
 
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(lang === 'ar' ? 'ar' : 'en-US', {
         month: 'short',
         day: 'numeric',
         year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
