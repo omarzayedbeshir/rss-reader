@@ -82,6 +82,8 @@ public class FeedStorageService
 
     public async Task<Feed> UpdateFeedAsync(Feed feed, string userId)
     {
+        feed.UserId = userId;
+
         using var conn = _db.OpenConnection();
         using var tx = conn.BeginTransaction();
 
