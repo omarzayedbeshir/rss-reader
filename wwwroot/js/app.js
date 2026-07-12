@@ -7,7 +7,7 @@ const state = {
     totalPages: 1,
     pageSize: 20,
     token: localStorage.getItem('token') || null,
-    username: localStorage.getItem('username') || null,
+    email: localStorage.getItem('email') || null,
     userId: localStorage.getItem('userId') || null
 };
 
@@ -15,11 +15,15 @@ const elements = {
     authView: document.getElementById('auth-view'),
     appView: document.getElementById('app-view'),
     authForm: document.getElementById('auth-form'),
-    authUsername: document.getElementById('auth-username'),
+    authFields: document.getElementById('auth-fields'),
+    authEmail: document.getElementById('auth-email'),
     authPassword: document.getElementById('auth-password'),
     authSubmit: document.getElementById('auth-submit'),
     authToggleBtn: document.getElementById('auth-toggle-btn'),
     authError: document.getElementById('auth-error'),
+    authMessage: document.getElementById('auth-message'),
+    resendSection: document.getElementById('resend-section'),
+    resendVerificationBtn: document.getElementById('resend-verification-btn'),
     currentUser: document.getElementById('current-user'),
     signoutBtn: document.getElementById('signout-btn'),
     feedList: document.getElementById('feed-list'),
@@ -78,30 +82,47 @@ async function checkAuth() {
 
 function clearAuth() {
     state.token = null;
-    state.username = null;
+    state.email = null;
     state.userId = null;
     localStorage.removeItem('token');
-    localStorage.removeItem('username');
+    localStorage.removeItem('email');
     localStorage.removeItem('userId');
 }
 
 function showAuthView() {
     elements.authView.classList.remove('hidden');
     elements.appView.classList.add('hidden');
+    checkVerifiedParam();
 }
 
 function showAppView() {
     elements.authView.classList.add('hidden');
     elements.appView.classList.remove('hidden');
-    elements.currentUser.textContent = state.username || '';
+    elements.currentUser.textContent = state.email || '';
     fetchFeeds(1);
 }
 
-async function signIn(username, password) {
+function showAuthFields() {
+    elements.authFields.style.display = '';
+    elements.authSubmit.style.display = '';
+    elements.authToggleBtn.parentElement.style.display = '';
+    elements.resendSection.style.display = 'none';
+    hideAuthMessage();
+}
+
+function showVerificationSent(email) {
+    elements.authFields.style.display = 'none';
+    elements.authSubmit.style.display = 'none';
+    elements.authToggleBtn.parentElement.style.display = 'none';
+    elements.resendSection.style.display = '';
+    showAuthMessage('Verification email sent to ' + email + '. Check your inbox and click the link to verify.');
+}
+
+async function signIn(email, password) {
     const response = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ email, password })
     });
 
     const data = await response.json();
@@ -111,19 +132,19 @@ async function signIn(username, password) {
     }
 
     state.token = data.token;
-    state.username = data.user.username;
+    state.email = data.user.email;
     state.userId = data.user.id;
     localStorage.setItem('token', data.token);
-    localStorage.setItem('username', data.user.username);
+    localStorage.setItem('email', data.user.email);
     localStorage.setItem('userId', data.user.id);
     showAppView();
 }
 
-async function signUp(username, password) {
+async function signUp(email, password) {
     const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ email, password })
     });
 
     const data = await response.json();
@@ -132,13 +153,37 @@ async function signUp(username, password) {
         throw new Error(data.error || 'Sign up failed.');
     }
 
-    state.token = data.token;
-    state.username = data.user.username;
-    state.userId = data.user.id;
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('username', data.user.username);
-    localStorage.setItem('userId', data.user.id);
-    showAppView();
+    showVerificationSent(email);
+    authMode = 'signin';
+    elements.authSubmit.textContent = 'Sign In';
+    elements.authToggleBtn.textContent = 'Create an account';
+    elements.authPassword.value = '';
+}
+
+async function resendVerification() {
+    const email = elements.authEmail.value.trim();
+    if (!email) {
+        showAuthError('Enter your email first.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/auth/resend-verification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to resend verification.');
+        }
+
+        showVerificationSent(email);
+    } catch (err) {
+        showAuthError(err.message);
+    }
 }
 
 async function signOut() {
@@ -161,23 +206,45 @@ function hideAuthError() {
     elements.authError.classList.add('hidden');
 }
 
+function showAuthMessage(message) {
+    elements.authMessage.textContent = message;
+    elements.authMessage.classList.remove('hidden');
+}
+
+function hideAuthMessage() {
+    elements.authMessage.classList.add('hidden');
+}
+
+function checkVerifiedParam() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('verified') === '1') {
+        showAuthMessage('Email verified! You can now sign in.');
+        window.history.replaceState({}, '', '/');
+    } else if (params.get('verified') === '0') {
+        showAuthError('Invalid or expired verification link.');
+        window.history.replaceState({}, '', '/');
+    }
+    showAuthFields();
+}
+
 async function handleAuthSubmit(e) {
     e.preventDefault();
     hideAuthError();
+    hideAuthMessage();
 
-    const username = elements.authUsername.value.trim();
+    const email = elements.authEmail.value.trim();
     const password = elements.authPassword.value;
 
-    if (!username || !password) {
-        showAuthError('Username and password are required.');
+    if (!email || !password) {
+        showAuthError('Email and password are required.');
         return;
     }
 
     try {
         if (authMode === 'signin') {
-            await signIn(username, password);
+            await signIn(email, password);
         } else {
-            await signUp(username, password);
+            await signUp(email, password);
         }
     } catch (err) {
         showAuthError(err.message);
@@ -189,12 +256,15 @@ function toggleAuthMode() {
     elements.authSubmit.textContent = authMode === 'signin' ? 'Sign In' : 'Sign Up';
     elements.authToggleBtn.textContent = authMode === 'signin' ? 'Create an account' : 'Sign in instead';
     hideAuthError();
+    hideAuthMessage();
+    showAuthFields();
     elements.authPassword.value = '';
 }
 
 async function init() {
     elements.authForm.addEventListener('submit', handleAuthSubmit);
     elements.authToggleBtn.addEventListener('click', toggleAuthMode);
+    elements.resendVerificationBtn.addEventListener('click', resendVerification);
     elements.signoutBtn.addEventListener('click', signOut);
 
     elements.refreshAllBtn.addEventListener('click', () => refreshAllFeeds());

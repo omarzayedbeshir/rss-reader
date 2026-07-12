@@ -21,7 +21,8 @@ public record ArticleResponse(
     string FeedId
 );
 
-public record SignUpRequest(string Username, string Password);
-public record SignInRequest(string Username, string Password);
+public record SignUpRequest(string Email, string Password);
+public record SignInRequest(string Email, string Password);
 public record AuthResponse(string Token, UserResponse User);
-public record UserResponse(string Id, string Username);
+public record UserResponse(string Id, string Email, bool EmailVerified);
+public record ResendVerificationRequest(string Email);

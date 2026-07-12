@@ -28,8 +28,10 @@ public class DatabaseService
         await conn.ExecuteAsync(@"
             CREATE TABLE IF NOT EXISTS users (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
+                email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+                verification_token TEXT,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
 
@@ -64,5 +66,34 @@ public class DatabaseService
             CREATE INDEX IF NOT EXISTS idx_feeds_user_id ON feeds(user_id);
             CREATE INDEX IF NOT EXISTS idx_articles_feed_id ON articles(feed_id);
         ");
+
+        await MigrateUsersTableAsync(conn);
+    }
+
+    private static async Task MigrateUsersTableAsync(NpgsqlConnection conn)
+    {
+        var hasUsername = await conn.QueryFirstOrDefaultAsync<bool>(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='username')");
+
+        if (hasUsername)
+        {
+            await conn.ExecuteAsync("ALTER TABLE users RENAME COLUMN username TO email");
+        }
+
+        var hasEmailVerified = await conn.QueryFirstOrDefaultAsync<bool>(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='email_verified')");
+
+        if (!hasEmailVerified)
+        {
+            await conn.ExecuteAsync("ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT FALSE");
+        }
+
+        var hasVerificationToken = await conn.QueryFirstOrDefaultAsync<bool>(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='verification_token')");
+
+        if (!hasVerificationToken)
+        {
+            await conn.ExecuteAsync("ALTER TABLE users ADD COLUMN verification_token TEXT");
+        }
     }
 }

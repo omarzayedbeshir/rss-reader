@@ -6,6 +6,7 @@ DotNetEnv.Env.Load();
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<DatabaseService>();
+builder.Services.AddSingleton<EmailService>();
 builder.Services.AddSingleton<AuthService>();
 builder.Services.AddSingleton<FeedStorageService>();
 
@@ -35,15 +36,17 @@ app.UseStaticFiles();
 
 var authApi = app.MapGroup("/api/auth");
 
-authApi.MapPost("/signup", async (SignUpRequest request, AuthService auth) =>
+authApi.MapPost("/signup", async (SignUpRequest request, HttpContext context, AuthService auth) =>
 {
-    if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
-        return BadRequest("Username and password are required.");
+    if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+        return BadRequest("Email and password are required.");
+
+    var baseUrl = $"{context.Request.Scheme}://{context.Request.Host}";
 
     try
     {
-        var result = await auth.SignUpAsync(request.Username.Trim(), request.Password);
-        return Results.Ok(result);
+        await auth.SignUpAsync(request.Email.Trim(), request.Password, baseUrl);
+        return Results.Ok(new { message = "Verification email sent. Check your inbox." });
     }
     catch (InvalidOperationException ex)
     {
@@ -57,17 +60,59 @@ authApi.MapPost("/signup", async (SignUpRequest request, AuthService auth) =>
 
 authApi.MapPost("/signin", async (SignInRequest request, AuthService auth) =>
 {
-    if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
-        return BadRequest("Username and password are required.");
+    if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+        return BadRequest("Email and password are required.");
 
     try
     {
-        var result = await auth.SignInAsync(request.Username.Trim(), request.Password);
+        var result = await auth.SignInAsync(request.Email.Trim(), request.Password);
         return Results.Ok(result);
     }
     catch (UnauthorizedAccessException ex)
     {
         return Unauthorized(ex.Message);
+    }
+    catch (ArgumentException ex)
+    {
+        return BadRequest(ex.Message);
+    }
+});
+
+authApi.MapGet("/verify-email", async (string token, HttpContext context, AuthService auth) =>
+{
+    if (string.IsNullOrWhiteSpace(token))
+        return BadRequest("Verification token is required.");
+
+    try
+    {
+        await auth.VerifyEmailAsync(token);
+        var baseUrl = $"{context.Request.Scheme}://{context.Request.Host}";
+        context.Response.Redirect($"{baseUrl}/?verified=1");
+        return Results.Empty;
+    }
+    catch (InvalidOperationException)
+    {
+        var baseUrl = $"{context.Request.Scheme}://{context.Request.Host}";
+        context.Response.Redirect($"{baseUrl}/?verified=0");
+        return Results.Empty;
+    }
+});
+
+authApi.MapPost("/resend-verification", async (ResendVerificationRequest request, HttpContext context, AuthService auth) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Email))
+        return BadRequest("Email is required.");
+
+    var baseUrl = $"{context.Request.Scheme}://{context.Request.Host}";
+
+    try
+    {
+        await auth.ResendVerificationAsync(request.Email.Trim(), baseUrl);
+        return Results.Ok(new { message = "Verification email resent." });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return BadRequest(ex.Message);
     }
     catch (ArgumentException ex)
     {
@@ -95,7 +140,7 @@ authApi.MapGet("/me", async (HttpContext context, AuthService auth) =>
     var user = await auth.GetUserAsync(userId);
     if (user is null) return Unauthorized("User not found.");
 
-    return Results.Ok(new { user.Id, user.Username });
+    return Results.Ok(new { user.Id, user.Email, user.EmailVerified });
 });
 
 var feedApi = app.MapGroup("/api/feeds");

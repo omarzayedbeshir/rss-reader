@@ -12,14 +12,18 @@
             <h1 class="auth-title">RSS Reader</h1>
             <p class="auth-subtitle">Sign in or create an account</p>
             <form id="auth-form" class="auth-form">
-                <div class="auth-fields">
-                    <input id="auth-username" type="text" class="input" placeholder="Username" required autocomplete="username">
+                <div class="auth-fields" id="auth-fields">
+                    <input id="auth-email" type="email" class="input" placeholder="Email" required autocomplete="email">
                     <input id="auth-password" type="password" class="input" placeholder="Password" required autocomplete="current-password">
                 </div>
                 <div id="auth-error" class="auth-error hidden"></div>
+                <div id="auth-message" class="auth-message hidden"></div>
                 <button id="auth-submit" type="submit" class="btn btn-primary auth-submit">Sign In</button>
                 <p class="auth-toggle">
                     <button id="auth-toggle-btn" type="button" class="btn-link">Create an account</button>
+                </p>
+                <p class="auth-toggle" id="resend-section" style="display:none;">
+                    <button id="resend-verification-btn" type="button" class="btn-link">Resend verification email</button>
                 </p>
             </form>
         </div>
