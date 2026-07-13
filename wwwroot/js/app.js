@@ -560,6 +560,9 @@ function renderArticles() {
         if (isRtl(article.title) || isRtl(article.summary)) {
             articleEl.setAttribute('dir', 'rtl');
             summaryEl.setAttribute('dir', 'rtl');
+        } else {
+            articleEl.setAttribute('dir', 'ltr');
+            summaryEl.setAttribute('dir', 'ltr');
         }
 
         summaryEl.innerHTML = article.summary;

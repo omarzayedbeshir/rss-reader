@@ -556,6 +556,11 @@ body {
     line-height: 1.6;
 }
 
+[dir="rtl"] .digest-content {
+    direction: ltr;
+    text-align: left;
+}
+
 /* RTL support */
 [dir="rtl"].article-summary {
     text-align: right;
