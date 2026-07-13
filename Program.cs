@@ -34,6 +34,17 @@ catch (Exception ex)
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+app.Use(async (context, next) =>
+{
+    try { await next(); }
+    catch (Exception)
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new { error = "Internal server error." });
+    }
+});
+
 var authApi = app.MapGroup("/api/auth");
 
 authApi.MapPost("/signup", async (SignUpRequest request, HttpContext context, AuthService auth) =>

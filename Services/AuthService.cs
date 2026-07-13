@@ -33,12 +33,20 @@ public class AuthService
         if (exists is not null)
             throw new InvalidOperationException("Email already registered.");
 
-        await conn.ExecuteAsync(
+        var userId = await conn.QuerySingleAsync<string>(
             "INSERT INTO users (email, password_hash, email_verified, verification_token) " +
-            "VALUES (@Email, @PasswordHash, FALSE, @VerificationToken)",
+            "VALUES (@Email, @PasswordHash, FALSE, @VerificationToken) RETURNING id::text",
             new { Email = normalizedEmail, PasswordHash = passwordHash, VerificationToken = verificationToken });
 
-        await _email.SendVerificationEmailAsync(email, verificationToken, baseUrl);
+        try
+        {
+            await _email.SendVerificationEmailAsync(email, verificationToken, baseUrl);
+        }
+        catch
+        {
+            await conn.ExecuteAsync("DELETE FROM users WHERE id = @Id::uuid", new { Id = userId });
+            throw;
+        }
     }
 
     public async Task<AuthResponse> SignInAsync(string email, string password)

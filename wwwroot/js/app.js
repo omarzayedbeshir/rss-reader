@@ -57,7 +57,15 @@ function authHeaders() {
 
 async function apiFetch(url, options = {}) {
     options.headers = { ...authHeaders(), ...options.headers };
-    return fetch(url, options);
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        const text = await response.text();
+        var message;
+        try { message = JSON.parse(text).error || 'Request failed (' + response.status + ')'; }
+        catch { message = 'Request failed (' + response.status + ')'; }
+        throw new Error(message);
+    }
+    return response;
 }
 
 async function checkAuth() {
