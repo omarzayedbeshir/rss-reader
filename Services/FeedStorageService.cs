@@ -115,12 +115,25 @@ public class FeedStorageService
 
     private static async Task InsertArticlesAsync(NpgsqlConnection conn, List<Article> articles, NpgsqlTransaction tx)
     {
-        foreach (var article in articles)
+        if (articles.Count == 0) return;
+
+        var rows = new List<string>(articles.Count);
+        var parameters = new DynamicParameters();
+
+        for (int i = 0; i < articles.Count; i++)
         {
-            await conn.ExecuteAsync(
-                "INSERT INTO articles (id, feed_id, title, url, summary, published) " +
-                "VALUES (@Id, @FeedId, @Title, @Url, @Summary, @Published)",
-                article, tx);
+            var a = articles[i];
+            rows.Add($"(@Id{i}, @FeedId{i}, @Title{i}, @Url{i}, @Summary{i}, @Published{i})");
+            parameters.Add($"Id{i}", a.Id);
+            parameters.Add($"FeedId{i}", a.FeedId);
+            parameters.Add($"Title{i}", a.Title);
+            parameters.Add($"Url{i}", a.Url);
+            parameters.Add($"Summary{i}", a.Summary);
+            parameters.Add($"Published{i}", a.Published);
         }
+
+        var sql = "INSERT INTO articles (id, feed_id, title, url, summary, published) VALUES " +
+                  string.Join(", ", rows);
+        await conn.ExecuteAsync(sql, parameters, tx);
     }
 }
