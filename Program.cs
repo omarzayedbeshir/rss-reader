@@ -37,11 +37,11 @@ app.UseStaticFiles();
 app.Use(async (context, next) =>
 {
     try { await next(); }
-    catch (Exception)
+    catch (Exception ex)
     {
         context.Response.StatusCode = 500;
         context.Response.ContentType = "application/json";
-        await context.Response.WriteAsJsonAsync(new { error = "Internal server error." });
+        await context.Response.WriteAsJsonAsync(new { error = ex.Message });
     }
 });
 
