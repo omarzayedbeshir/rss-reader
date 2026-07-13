@@ -16,7 +16,7 @@ public class EmailService
         _http = new HttpClient { BaseAddress = new Uri("https://api.resend.com") };
         _http.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
         _http.DefaultRequestHeaders.Add("User-Agent", "RssReader/1.0");
-        _fromEmail = Environment.GetEnvironmentVariable("RESEND_FROM_EMAIL") ?? "RSS Reader <onboarding@resend.dev>";
+        _fromEmail = Environment.GetEnvironmentVariable("RESEND_FROM_EMAIL") ?? "onboarding@resend.dev";
     }
 
     public async Task SendVerificationEmailAsync(string toEmail, string token, string baseUrl)
@@ -37,6 +37,10 @@ public class EmailService
 
         var json = JsonSerializer.Serialize(body);
         var response = await _http.PostAsync("/emails", new StringContent(json, Encoding.UTF8, "application/json"));
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            throw new HttpRequestException($"Resend error ({response.StatusCode}): {errorBody}");
+        }
     }
 }
