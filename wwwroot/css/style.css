@@ -561,6 +561,11 @@ body {
     text-align: left;
 }
 
+[dir="rtl"] .digest-header {
+    direction: ltr;
+    text-align: left;
+}
+
 /* RTL support */
 [dir="rtl"].article-summary {
     text-align: right;
