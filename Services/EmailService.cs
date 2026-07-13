@@ -31,6 +31,8 @@ public class EmailService
             html = $"<p>Welcome to RSS Reader!</p>" +
                    $"<p>Click the link below to verify your email address:</p>" +
                    $"<p><a href=\"{verifyUrl}\">Verify Email</a></p>" +
+                   $"<p>Or copy and paste this link into your browser:</p>" +
+                   $"<p><code>{verifyUrl}</code></p>" +
                    $"<p>If you did not create this account, you can ignore this email.</p>",
             click_tracking = false
         };
