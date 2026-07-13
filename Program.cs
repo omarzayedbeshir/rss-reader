@@ -16,6 +16,7 @@ builder.Services.AddHttpClient("RssClient", client =>
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 
+builder.Services.AddSingleton<AiService>();
 builder.Services.AddSingleton<FeedFetchService>();
 
 var app = builder.Build();
@@ -166,6 +167,7 @@ feedApi.MapGet("/", async (HttpContext context, AuthService auth, FeedStorageSer
     var ps = Math.Clamp(pageSize ?? 20, 1, 100);
 
     var feeds = await storage.GetAllFeedsAsync(userId);
+    var digest = await storage.GetDailyDigestAsync(userId);
     var allArticles = feeds
         .SelectMany(f => f.Articles.Select(a => new ArticleResponse(
             a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId)))
@@ -189,6 +191,7 @@ feedApi.MapGet("/", async (HttpContext context, AuthService auth, FeedStorageSer
     {
         feeds = feedResponses,
         articles = pagedArticles,
+        digest,
         page = p,
         pageSize = ps,
         totalCount,
@@ -258,6 +261,31 @@ feedApi.MapPost("/{id}/refresh", async (string id, HttpContext context,
     {
         return BadRequest($"Failed to refresh feed: {ex.Message}");
     }
+});
+
+var articleApi = app.MapGroup("/api/articles");
+
+articleApi.MapPost("/summarize-today", async (HttpContext context,
+    AuthService auth, FeedStorageService storage, AiService ai) =>
+{
+    var userId = await GetUserId(context, auth);
+    if (userId is null) return Unauthorized("Not authenticated.");
+
+    var articles = await storage.GetTodayArticlesAsync(userId);
+    if (articles.Count == 0)
+        return Results.Ok(new { digest = (string?)null, message = "No articles from today." });
+
+    var prompt = "Summarize today's RSS feed articles in 4-6 bullet points. Cover the key stories. Respond in the language the articles are written in.\n\n";
+    for (int i = 0; i < articles.Count; i++)
+    {
+        var a = articles[i];
+        prompt += $"{i + 1}. Title: {a.Title}\n   Content: {a.Summary}\n\n";
+    }
+
+    var summary = await ai.SummarizeAsync(prompt);
+    await storage.SaveDailyDigestAsync(userId, summary);
+
+    return Results.Ok(new { digest = summary });
 });
 
 app.Run();

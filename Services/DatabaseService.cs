@@ -73,6 +73,13 @@ public class DatabaseService
                 published TEXT DEFAULT (datetime('now'))
             );
 
+            CREATE TABLE IF NOT EXISTS daily_summaries (
+                user_id TEXT NOT NULL,
+                date TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                PRIMARY KEY (user_id, date)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
             CREATE INDEX IF NOT EXISTS idx_feeds_user_id ON feeds(user_id);
             CREATE INDEX IF NOT EXISTS idx_articles_feed_id ON articles(feed_id);

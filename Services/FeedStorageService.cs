@@ -113,6 +113,33 @@ public class FeedStorageService
         return feed;
     }
 
+    public async Task<string?> GetDailyDigestAsync(string userId)
+    {
+        using var conn = _db.OpenConnection();
+        return await conn.QueryFirstOrDefaultAsync<string>(
+            "SELECT summary FROM daily_summaries WHERE user_id = @UserId AND date = date('now')",
+            new { UserId = userId });
+    }
+
+    public async Task SaveDailyDigestAsync(string userId, string summary)
+    {
+        using var conn = _db.OpenConnection();
+        await conn.ExecuteAsync(
+            "INSERT OR REPLACE INTO daily_summaries (user_id, date, summary) VALUES (@UserId, date('now'), @Summary)",
+            new { UserId = userId, Summary = summary });
+    }
+
+    public async Task<List<Article>> GetTodayArticlesAsync(string userId)
+    {
+        using var conn = _db.OpenConnection();
+        return (await conn.QueryAsync<Article>(
+            "SELECT a.id, a.title, a.summary FROM articles a " +
+            "JOIN feeds f ON a.feed_id = f.id " +
+            "WHERE f.user_id = @UserId AND date(a.published) = date('now') " +
+            "ORDER BY a.published DESC",
+            new { UserId = userId })).ToList();
+    }
+
     private static async Task InsertArticlesAsync(SqliteConnection conn, List<Article> articles, SqliteTransaction tx)
     {
         if (articles.Count == 0) return;

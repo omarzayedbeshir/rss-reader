@@ -30,3 +30,10 @@ public class Article
     public DateTime Published { get; set; } = DateTime.UtcNow;
     public string FeedId { get; set; } = string.Empty;
 }
+
+public class DailyDigest
+{
+    public string UserId { get; set; } = string.Empty;
+    public string Date { get; set; } = string.Empty;
+    public string Summary { get; set; } = string.Empty;
+}

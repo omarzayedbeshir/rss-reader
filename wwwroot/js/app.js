@@ -1,6 +1,7 @@
 const state = {
     feeds: [],
     articles: [],
+    digest: null,
     selectedFeedId: null,
     loading: false,
     currentPage: 1,
@@ -31,6 +32,11 @@ const elements = {
     loading: document.getElementById('loading'),
     error: document.getElementById('error'),
     empty: document.getElementById('empty'),
+    summarizeBanner: document.getElementById('summarize-banner'),
+    summarizeBannerText: document.querySelector('.summarize-banner-text'),
+    summarizeTodayBtn: document.getElementById('summarize-today-btn'),
+    dailyDigest: document.getElementById('daily-digest'),
+    digestContent: document.querySelector('.digest-content'),
     refreshAllBtn: document.getElementById('refresh-all-btn'),
     addFeedBtn: document.getElementById('add-feed-btn'),
     addFeedForm: document.getElementById('add-feed-form'),
@@ -202,6 +208,7 @@ async function signOut() {
     state.feeds = [];
     state.articles = [];
     state.selectedFeedId = null;
+    state.digest = null;
     showAuthView();
 }
 
@@ -292,6 +299,7 @@ async function init() {
     elements.signoutBtn.addEventListener('click', signOut);
 
     elements.refreshAllBtn.addEventListener('click', () => refreshAllFeeds());
+    elements.summarizeTodayBtn.addEventListener('click', () => summarizeToday());
     elements.prevPageBtn.addEventListener('click', () => fetchFeeds(state.currentPage - 1));
     elements.nextPageBtn.addEventListener('click', () => fetchFeeds(state.currentPage + 1));
 
@@ -338,6 +346,7 @@ async function fetchFeeds(page = state.currentPage) {
         const data = await response.json();
         state.feeds = data.feeds || [];
         state.articles = data.articles || [];
+        state.digest = data.digest || null;
         state.currentPage = data.page;
         state.totalPages = data.totalPages;
 
@@ -421,6 +430,56 @@ async function refreshAllFeeds() {
         await fetchFeeds(1);
     } catch (err) {
         showError(err.message);
+    }
+}
+
+async function summarizeToday() {
+    elements.summarizeTodayBtn.disabled = true;
+    elements.summarizeTodayBtn.textContent = 'Summarizing...';
+
+    try {
+        const response = await apiFetch('/api/articles/summarize-today', { method: 'POST' });
+        const data = await response.json();
+        if (data.digest) {
+            state.digest = data.digest;
+            renderDigest();
+            elements.summarizeBanner.classList.add('hidden');
+        }
+    } catch (err) {
+        showError(err.message);
+    } finally {
+        elements.summarizeTodayBtn.disabled = false;
+        elements.summarizeTodayBtn.textContent = 'Summarize Today';
+    }
+}
+
+function renderDigest() {
+    if (state.digest) {
+        elements.digestContent.innerHTML = state.digest
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
+        elements.dailyDigest.classList.remove('hidden');
+        elements.summarizeBanner.classList.add('hidden');
+    } else {
+        elements.dailyDigest.classList.add('hidden');
+        updateSummarizeBanner();
+    }
+}
+
+function updateSummarizeBanner() {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const hasTodayArticles = state.articles.some(a => {
+        return new Date(a.published) >= todayStart;
+    });
+
+    if (!state.digest && hasTodayArticles) {
+        const count = state.articles.filter(a => new Date(a.published) >= todayStart).length;
+        elements.summarizeBannerText.textContent = count + ' article' + (count !== 1 ? 's' : '') + ' from today. ';
+        elements.summarizeBanner.classList.remove('hidden');
+    } else {
+        elements.summarizeBanner.classList.add('hidden');
     }
 }
 
@@ -511,6 +570,8 @@ function renderArticles() {
 
         elements.articleList.appendChild(template);
     });
+
+    renderDigest();
 }
 
 function renderPagination() {
@@ -555,6 +616,8 @@ function showLoading() {
     elements.loading.classList.remove('hidden');
     elements.error.classList.add('hidden');
     elements.empty.classList.add('hidden');
+    elements.summarizeBanner.classList.add('hidden');
+    elements.dailyDigest.classList.add('hidden');
     elements.articleList.innerHTML = '';
 }
 
