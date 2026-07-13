@@ -9,8 +9,14 @@ public class DatabaseService
 
     public DatabaseService(IConfiguration configuration)
     {
-        var dbPath = Environment.GetEnvironmentVariable("SQLITE_PATH")
-            ?? Path.Combine(AppContext.BaseDirectory, "Data", "rssreader.db");
+        var dbPath = Environment.GetEnvironmentVariable("SQLITE_PATH");
+        if (string.IsNullOrEmpty(dbPath))
+        {
+            var rail = Environment.GetEnvironmentVariable("RAILWAY_VOLUME_MOUNT_PATH");
+            dbPath = !string.IsNullOrEmpty(rail)
+                ? Path.Combine(rail, "rssreader.db")
+                : Path.Combine(AppContext.BaseDirectory, "Data", "rssreader.db");
+        }
         var dir = Path.GetDirectoryName(dbPath);
         if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             Directory.CreateDirectory(dir);
