@@ -28,7 +28,7 @@ try
 catch (Exception ex)
 {
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogWarning(ex, "Database initialization failed. API endpoints will not work until the database is reachable. Check your connection string in appsettings.json (Supabase pooler uses port 6543, not 5432).");
+    logger.LogWarning(ex, "Database initialization failed.");
 }
 
 app.UseDefaultFiles();

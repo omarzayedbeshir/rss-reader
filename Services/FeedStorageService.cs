@@ -1,5 +1,5 @@
 using Dapper;
-using Npgsql;
+using Microsoft.Data.Sqlite;
 using RssReader.Models;
 
 namespace RssReader.Services;
@@ -17,8 +17,8 @@ public class FeedStorageService
     {
         using var conn = _db.OpenConnection();
         var feeds = (await conn.QueryAsync<Feed>(
-            "SELECT id, user_id::text AS UserId, title, feed_url AS FeedUrl, site_url AS SiteUrl, " +
-            "description, last_refreshed AS LastRefreshed FROM feeds WHERE user_id = @UserId::uuid",
+            "SELECT id, user_id AS UserId, title, feed_url AS FeedUrl, site_url AS SiteUrl, " +
+            "description, last_refreshed AS LastRefreshed FROM feeds WHERE user_id = @UserId",
             new { UserId = userId })).ToList();
 
         foreach (var feed in feeds)
@@ -36,8 +36,8 @@ public class FeedStorageService
     {
         using var conn = _db.OpenConnection();
         var feed = await conn.QueryFirstOrDefaultAsync<Feed>(
-            "SELECT id, user_id::text AS UserId, title, feed_url AS FeedUrl, site_url AS SiteUrl, " +
-            "description, last_refreshed AS LastRefreshed FROM feeds WHERE id = @Id AND user_id = @UserId::uuid",
+            "SELECT id, user_id AS UserId, title, feed_url AS FeedUrl, site_url AS SiteUrl, " +
+            "description, last_refreshed AS LastRefreshed FROM feeds WHERE id = @Id AND user_id = @UserId",
             new { Id = id, UserId = userId });
 
         if (feed is not null)
@@ -60,7 +60,7 @@ public class FeedStorageService
 
         await conn.ExecuteAsync(
             "INSERT INTO feeds (id, user_id, title, feed_url, site_url, description, last_refreshed) " +
-            "VALUES (@Id, @UserId::uuid, @Title, @FeedUrl, @SiteUrl, @Description, @LastRefreshed)",
+            "VALUES (@Id, @UserId, @Title, @FeedUrl, @SiteUrl, @Description, @LastRefreshed)",
             feed, tx);
 
         if (feed.Articles.Count > 0)
@@ -76,7 +76,7 @@ public class FeedStorageService
     {
         using var conn = _db.OpenConnection();
         await conn.ExecuteAsync(
-            "DELETE FROM feeds WHERE id = @Id AND user_id = @UserId::uuid",
+            "DELETE FROM feeds WHERE id = @Id AND user_id = @UserId",
             new { Id = id, UserId = userId });
     }
 
@@ -88,7 +88,7 @@ public class FeedStorageService
         using var tx = conn.BeginTransaction();
 
         var existing = await conn.QueryFirstOrDefaultAsync<Feed>(
-            "SELECT id FROM feeds WHERE id = @Id AND user_id = @UserId::uuid",
+            "SELECT id FROM feeds WHERE id = @Id AND user_id = @UserId",
             new { feed.Id, UserId = userId }, tx);
 
         if (existing is null)
@@ -99,7 +99,7 @@ public class FeedStorageService
 
         await conn.ExecuteAsync(
             "UPDATE feeds SET title = @Title, site_url = @SiteUrl, description = @Description, " +
-            "last_refreshed = @LastRefreshed WHERE id = @Id AND user_id = @UserId::uuid",
+            "last_refreshed = @LastRefreshed WHERE id = @Id AND user_id = @UserId",
             feed, tx);
 
         if (feed.Articles.Count > 0)
@@ -113,7 +113,7 @@ public class FeedStorageService
         return feed;
     }
 
-    private static async Task InsertArticlesAsync(NpgsqlConnection conn, List<Article> articles, NpgsqlTransaction tx)
+    private static async Task InsertArticlesAsync(SqliteConnection conn, List<Article> articles, SqliteTransaction tx)
     {
         if (articles.Count == 0) return;
 

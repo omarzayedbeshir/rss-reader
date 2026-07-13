@@ -24,19 +24,20 @@ public class AuthService
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
         var verificationToken = Guid.NewGuid().ToString("N");
         var normalizedEmail = email.Trim().ToLowerInvariant();
+        var userId = Guid.NewGuid().ToString("N")[..12];
 
         using var conn = _db.OpenConnection();
         var exists = await conn.QueryFirstOrDefaultAsync<string>(
-            "SELECT id::text FROM users WHERE email = @Email",
+            "SELECT id FROM users WHERE email = @Email",
             new { Email = normalizedEmail });
 
         if (exists is not null)
             throw new InvalidOperationException("Email already registered.");
 
-        var userId = await conn.QuerySingleAsync<string>(
-            "INSERT INTO users (email, password_hash, email_verified, verification_token) " +
-            "VALUES (@Email, @PasswordHash, FALSE, @VerificationToken) RETURNING id::text",
-            new { Email = normalizedEmail, PasswordHash = passwordHash, VerificationToken = verificationToken });
+        await conn.ExecuteAsync(
+            "INSERT INTO users (id, email, password_hash, email_verified, verification_token) " +
+            "VALUES (@Id, @Email, @PasswordHash, 0, @VerificationToken)",
+            new { Id = userId, Email = normalizedEmail, PasswordHash = passwordHash, VerificationToken = verificationToken });
 
         try
         {
@@ -44,7 +45,7 @@ public class AuthService
         }
         catch
         {
-            await conn.ExecuteAsync("DELETE FROM users WHERE id = @Id::uuid", new { Id = userId });
+            await conn.ExecuteAsync("DELETE FROM users WHERE id = @Id", new { Id = userId });
             throw;
         }
     }
@@ -56,7 +57,7 @@ public class AuthService
 
         using var conn = _db.OpenConnection();
         var row = await conn.QueryFirstOrDefaultAsync(
-            "SELECT id::text AS id, email, password_hash AS passwordhash, email_verified AS emailverified FROM users WHERE email = @Email",
+            "SELECT id, email, password_hash AS passwordhash, email_verified AS emailverified FROM users WHERE email = @Email",
             new { Email = email.Trim().ToLowerInvariant() });
 
         if (row is null)
@@ -65,7 +66,7 @@ public class AuthService
         string userId = row.id;
         string userEmail = row.email;
         string passwordHash = row.passwordhash;
-        bool emailVerified = row.emailverified;
+        bool emailVerified = (long)row.emailverified != 0;
 
         if (string.IsNullOrEmpty(passwordHash) || !BCrypt.Net.BCrypt.Verify(password, passwordHash))
             throw new UnauthorizedAccessException("Invalid email or password.");
@@ -73,10 +74,12 @@ public class AuthService
         if (!emailVerified)
             throw new UnauthorizedAccessException("Email not verified. Check your inbox or request a new verification email.");
 
+        var sessionId = Guid.NewGuid().ToString("N")[..12];
         var token = Guid.NewGuid().ToString("N");
+        var expiresAt = DateTime.UtcNow.AddDays(30).ToString("O");
         await conn.ExecuteAsync(
-            "INSERT INTO sessions (user_id, token, expires_at) VALUES (@UserId::uuid, @Token, @ExpiresAt)",
-            new { UserId = userId, Token = token, ExpiresAt = DateTime.UtcNow.AddDays(30) });
+            "INSERT INTO sessions (id, user_id, token, expires_at) VALUES (@Id, @UserId, @Token, @ExpiresAt)",
+            new { Id = sessionId, UserId = userId, Token = token, ExpiresAt = expiresAt });
 
         return new AuthResponse(token, new UserResponse(userId, userEmail, emailVerified));
     }
@@ -85,14 +88,14 @@ public class AuthService
     {
         using var conn = _db.OpenConnection();
         var row = await conn.QueryFirstOrDefaultAsync(
-            "SELECT id::text AS id, email FROM users WHERE verification_token = @Token",
+            "SELECT id, email FROM users WHERE verification_token = @Token",
             new { Token = verificationToken });
 
         if (row is null)
             throw new InvalidOperationException("Invalid or expired verification link.");
 
         await conn.ExecuteAsync(
-            "UPDATE users SET email_verified = TRUE, verification_token = NULL WHERE id = @Id::uuid",
+            "UPDATE users SET email_verified = 1, verification_token = NULL WHERE id = @Id",
             new { Id = (string)row.id });
     }
 
@@ -103,18 +106,18 @@ public class AuthService
 
         using var conn = _db.OpenConnection();
         var row = await conn.QueryFirstOrDefaultAsync(
-            "SELECT id::text AS id, email, email_verified AS emailverified FROM users WHERE email = @Email",
+            "SELECT id, email, email_verified AS emailverified FROM users WHERE email = @Email",
             new { Email = email.Trim().ToLowerInvariant() });
 
         if (row is null)
             return;
 
-        if ((bool)row.emailverified)
+        if ((long)row.emailverified != 0)
             throw new InvalidOperationException("Email is already verified.");
 
         var newToken = Guid.NewGuid().ToString("N");
         await conn.ExecuteAsync(
-            "UPDATE users SET verification_token = @Token WHERE id = @Id::uuid",
+            "UPDATE users SET verification_token = @Token WHERE id = @Id",
             new { Token = newToken, Id = (string)row.id });
 
         await _email.SendVerificationEmailAsync((string)row.email, newToken, baseUrl);
@@ -124,7 +127,7 @@ public class AuthService
     {
         using var conn = _db.OpenConnection();
         return await conn.QueryFirstOrDefaultAsync<string>(
-            "SELECT user_id::text FROM sessions WHERE token = @Token AND expires_at > NOW()",
+            "SELECT user_id FROM sessions WHERE token = @Token AND expires_at > datetime('now')",
             new { Token = token });
     }
 
@@ -138,7 +141,7 @@ public class AuthService
     {
         using var conn = _db.OpenConnection();
         var row = await conn.QueryFirstOrDefaultAsync(
-            "SELECT id::text AS id, email, email_verified AS emailverified FROM users WHERE id = @UserId::uuid",
+            "SELECT id, email, email_verified AS emailverified FROM users WHERE id = @UserId",
             new { UserId = userId });
 
         if (row is null) return null;
@@ -147,7 +150,7 @@ public class AuthService
         {
             Id = row.id,
             Email = row.email,
-            EmailVerified = row.emailverified
+            EmailVerified = (long)row.emailverified != 0
         };
     }
 }
