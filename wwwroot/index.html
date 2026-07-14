@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+    <a href="#content" class="skip-link">Skip to content</a>
     <div id="auth-view" class="auth-view">
         <button class="lang-toggle-btn btn-link" type="button"></button>
         <div class="auth-card">
@@ -14,11 +15,13 @@
             <p class="auth-subtitle">Sign in or create an account</p>
             <form id="auth-form" class="auth-form">
                 <div class="auth-fields" id="auth-fields">
+                    <label for="auth-email" class="visually-hidden">Email</label>
                     <input id="auth-email" type="email" class="input" placeholder="Email" required autocomplete="email">
+                    <label for="auth-password" class="visually-hidden">Password</label>
                     <input id="auth-password" type="password" class="input" placeholder="Password" required autocomplete="current-password">
                 </div>
-                <div id="auth-error" class="auth-error hidden"></div>
-                <div id="auth-message" class="auth-message hidden"></div>
+                <div id="auth-error" class="auth-error hidden" role="alert"></div>
+                <div id="auth-message" class="auth-message hidden" role="status"></div>
                 <button id="auth-submit" type="submit" class="btn btn-primary auth-submit">Sign In</button>
                 <p class="auth-toggle">
                     <button id="auth-toggle-btn" type="button" class="btn-link">Create an account</button>
@@ -45,6 +48,7 @@
 
             <div id="add-feed-form" class="add-feed-form hidden">
                 <form id="feed-form">
+                    <label for="feed-url" class="visually-hidden">Feed URL</label>
                     <input type="url" id="feed-url" class="input" placeholder="https://example.com/rss" required>
                     <button type="submit" class="btn btn-primary">Subscribe</button>
                     <button type="button" id="cancel-add-btn" class="btn btn-secondary">Cancel</button>
@@ -58,7 +62,7 @@
 
                 <main class="content" id="content">
                     <div id="loading" class="loading">Loading articles...</div>
-                    <div id="error" class="error hidden"></div>
+                    <div id="error" class="error hidden" role="alert"></div>
                     <div id="daily-digest" class="daily-digest hidden">
                         <div class="digest-header">Today's Digest</div>
                         <div class="digest-content"></div>

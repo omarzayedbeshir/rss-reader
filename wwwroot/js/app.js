@@ -251,9 +251,14 @@ async function handleAuthSubmit(e) {
     const password = elements.authPassword.value;
 
     if (!email || !password) {
+        elements.authEmail.setAttribute('aria-invalid', 'true');
+        elements.authPassword.setAttribute('aria-invalid', 'true');
         showAuthError(t('emailPasswordRequired'));
         return;
     }
+
+    elements.authEmail.removeAttribute('aria-invalid');
+    elements.authPassword.removeAttribute('aria-invalid');
 
     try {
         if (authMode === 'signin') {
@@ -483,6 +488,11 @@ function updateSummarizeBanner() {
     }
 }
 
+function toggleFeedSelection(feed) {
+    state.selectedFeedId = state.selectedFeedId === feed.id ? null : feed.id;
+    fetchFeeds(1);
+}
+
 function renderFeeds() {
     elements.feedList.innerHTML = '';
 
@@ -503,15 +513,27 @@ function renderFeeds() {
 
         if (state.selectedFeedId === feed.id) {
             li.classList.add('active');
+            li.setAttribute('aria-selected', 'true');
         }
+
+        li.setAttribute('role', 'button');
+        li.setAttribute('tabindex', '0');
+        li.setAttribute('aria-pressed', state.selectedFeedId === feed.id ? 'true' : 'false');
 
         refreshBtn.title = t('refreshFeedTitle');
         removeBtn.title = t('removeFeedTitle');
 
         li.addEventListener('click', (e) => {
             if (e.target === refreshBtn || e.target === removeBtn) return;
-            state.selectedFeedId = state.selectedFeedId === feed.id ? null : feed.id;
-            fetchFeeds(1);
+            toggleFeedSelection(feed);
+        });
+
+        li.addEventListener('keydown', (e) => {
+            if (e.target === refreshBtn || e.target === removeBtn) return;
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleFeedSelection(feed);
+            }
         });
 
         refreshBtn.addEventListener('click', (e) => {
