@@ -1,5 +1,6 @@
 using System.Net;
 using System.ServiceModel.Syndication;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using Ganss.Xss;
@@ -30,7 +31,10 @@ public class FeedFetchService
         using var response = await client.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
-        using var stream = await response.Content.ReadAsStreamAsync();
+        var raw = await response.Content.ReadAsStringAsync();
+        raw = HtmlEntityFixer.Fix(raw);
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(raw));
         using var reader = XmlReader.Create(stream);
         var syndicationFeed = SyndicationFeed.Load(reader);
 
@@ -100,6 +104,42 @@ public class FeedFetchService
         decoded = Regex.Replace(decoded, "<[^>]*>", "");
         decoded = Regex.Replace(decoded, @"\n{3,}", "\n\n");
         return decoded.Trim();
+    }
+}
+
+internal static partial class HtmlEntityFixer
+{
+    private static readonly Dictionary<string, string> Replacements = new()
+    {
+        ["zwnj"] = "\u200C",
+        ["zwj"] = "\u200D",
+        ["lrm"] = "\u200E",
+        ["rlm"] = "\u200F",
+        ["nbsp"] = "\u00A0",
+        ["shy"] = "\u00AD",
+        ["ensp"] = "\u2002",
+        ["emsp"] = "\u2003",
+        ["thinsp"] = "\u2009",
+        ["ndash"] = "\u2013",
+        ["mdash"] = "\u2014",
+        ["lsquo"] = "\u2018",
+        ["rsquo"] = "\u2019",
+        ["ldquo"] = "\u201C",
+        ["rdquo"] = "\u201D",
+    };
+
+    [GeneratedRegex(@"&([a-zA-Z]+);")]
+    private static partial Regex EntityRegex();
+
+    public static string Fix(string html)
+    {
+        return EntityRegex().Replace(html, match =>
+        {
+            var name = match.Groups[1].Value.ToLowerInvariant();
+            if (name is "amp" or "lt" or "gt" or "quot" or "apos")
+                return match.Value;
+            return Replacements.TryGetValue(name, out var c) ? c : match.Value;
+        });
     }
 }
 
