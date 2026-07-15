@@ -81,7 +81,7 @@ public class FeedFetchService
                 EnclosureUrl = enclosureUrl,
                 EnclosureType = enclosureType
             };
-        }).ToList();
+        }).Where(a => a.Published >= DateTime.UtcNow.AddDays(-30)).ToList();
 
         return feed;
     }

@@ -80,6 +80,13 @@ public class DatabaseService
                 PRIMARY KEY (user_id, date)
             );
 
+            CREATE TABLE IF NOT EXISTS bookmarks (
+                user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+                created_at TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (user_id, article_id)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
             CREATE INDEX IF NOT EXISTS idx_feeds_user_id ON feeds(user_id);
             CREATE INDEX IF NOT EXISTS idx_articles_feed_id ON articles(feed_id);
@@ -92,5 +99,9 @@ public class DatabaseService
         await conn.ExecuteAsync(
             "DELETE FROM users WHERE email LIKE 'anon_%@demo.local' " +
             "AND (last_accessed_at IS NULL OR datetime(last_accessed_at) < datetime('now', '-7 days'))");
+
+        await conn.ExecuteAsync(
+            "DELETE FROM articles WHERE datetime(published) < datetime('now', '-30 days') " +
+            "AND id NOT IN (SELECT article_id FROM bookmarks)");
     }
 }

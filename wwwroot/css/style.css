@@ -413,6 +413,23 @@ body {
     border-bottom: none;
 }
 
+.bookmark-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #eab308;
+    padding: 2px 4px;
+    line-height: 1;
+    flex-shrink: 0;
+    min-width: 24px;
+    min-height: 24px;
+}
+
+.bookmark-btn:hover {
+    color: #ca8a04;
+}
+
 .article-header {
     display: flex;
     align-items: center;

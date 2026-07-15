@@ -13,24 +13,61 @@ public class FeedStorageService
         _db = db;
     }
 
-    public async Task<List<Feed>> GetAllFeedsAsync(string userId)
+    public async Task<List<Feed>> GetAllFeedsAsync(string userId, bool bookmarksOnly = false)
     {
         using var conn = _db.OpenConnection();
-        var feeds = (await conn.QueryAsync<Feed>(
-            "SELECT id, user_id AS UserId, title, feed_url AS FeedUrl, site_url AS SiteUrl, " +
-            "description, last_refreshed AS LastRefreshed FROM feeds WHERE user_id = @UserId",
-            new { UserId = userId })).ToList();
+
+        string articleQuery;
+        if (bookmarksOnly)
+        {
+            articleQuery =
+                "SELECT a.id, a.title, a.url, a.summary, a.published, a.feed_id AS FeedId, " +
+                "a.enclosure_url AS EnclosureUrl, a.enclosure_type AS EnclosureType, 1 AS IsBookmarked " +
+                "FROM articles a " +
+                "JOIN bookmarks b ON a.id = b.article_id AND b.user_id = @UserId " +
+                "JOIN feeds f ON a.feed_id = f.id AND f.user_id = @UserId " +
+                "ORDER BY a.published DESC";
+        }
+        else
+        {
+            articleQuery =
+                "SELECT a.id, a.title, a.url, a.summary, a.published, a.feed_id AS FeedId, " +
+                "a.enclosure_url AS EnclosureUrl, a.enclosure_type AS EnclosureType, " +
+                "CASE WHEN b.article_id IS NOT NULL THEN 1 ELSE 0 END AS IsBookmarked " +
+                "FROM articles a " +
+                "JOIN feeds f ON a.feed_id = f.id AND f.user_id = @UserId " +
+                "LEFT JOIN bookmarks b ON a.id = b.article_id AND b.user_id = @UserId " +
+                "ORDER BY a.published DESC";
+        }
+
+        var articles = (await conn.QueryAsync<Article>(articleQuery, new { UserId = userId })).ToList();
+
+        var feeds = articles.GroupBy(a => a.FeedId).Select(g => new Feed
+        {
+            Id = g.Key,
+            UserId = userId,
+            Title = "",
+            FeedUrl = "",
+            Articles = g.ToList()
+        }).ToList();
 
         foreach (var feed in feeds)
         {
-            feed.Articles = (await conn.QueryAsync<Article>(
-                "SELECT id, title, url, summary, published, feed_id AS FeedId, " +
-                "enclosure_url AS EnclosureUrl, enclosure_type AS EnclosureType " +
-                "FROM articles WHERE feed_id = @FeedId ORDER BY published DESC",
-                new { FeedId = feed.Id })).ToList();
+            var feedData = await conn.QueryFirstOrDefaultAsync<Feed>(
+                "SELECT id, user_id AS UserId, title, feed_url AS FeedUrl, site_url AS SiteUrl, " +
+                "description, last_refreshed AS LastRefreshed FROM feeds WHERE id = @Id AND user_id = @UserId",
+                new { Id = feed.Id, UserId = userId });
+            if (feedData is not null)
+            {
+                feed.Title = feedData.Title;
+                feed.FeedUrl = feedData.FeedUrl;
+                feed.SiteUrl = feedData.SiteUrl;
+                feed.Description = feedData.Description;
+                feed.LastRefreshed = feedData.LastRefreshed;
+            }
         }
 
-        return feeds;
+        return feeds.OrderBy(f => f.Title).ToList();
     }
 
     public async Task<Feed?> GetFeedAsync(string id, string userId)
@@ -159,6 +196,27 @@ public class FeedStorageService
             "WHERE f.user_id = @UserId AND date(a.published) = date('now') " +
             "ORDER BY a.published DESC",
             new { UserId = userId })).ToList();
+    }
+
+    public async Task<bool> ToggleBookmarkAsync(string userId, string articleId)
+    {
+        using var conn = _db.OpenConnection();
+        var exists = await conn.QueryFirstOrDefaultAsync<string>(
+            "SELECT article_id FROM bookmarks WHERE user_id = @UserId AND article_id = @ArticleId",
+            new { UserId = userId, ArticleId = articleId });
+
+        if (exists is not null)
+        {
+            await conn.ExecuteAsync(
+                "DELETE FROM bookmarks WHERE user_id = @UserId AND article_id = @ArticleId",
+                new { UserId = userId, ArticleId = articleId });
+            return false;
+        }
+
+        await conn.ExecuteAsync(
+            "INSERT INTO bookmarks (user_id, article_id) VALUES (@UserId, @ArticleId)",
+            new { UserId = userId, ArticleId = articleId });
+        return true;
     }
 
     private static async Task InsertArticlesAsync(SqliteConnection conn, List<Article> articles, SqliteTransaction tx)

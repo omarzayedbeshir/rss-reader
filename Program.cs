@@ -158,7 +158,7 @@ authApi.MapGet("/me", async (HttpContext context, AuthService auth, FeedStorageS
 var feedApi = app.MapGroup("/api/feeds");
 
 feedApi.MapGet("/", async (HttpContext context, AuthService auth, FeedStorageService storage,
-    int? page, int? pageSize, string? feedId) =>
+    int? page, int? pageSize, string? feedId, bool? bookmarked) =>
 {
     var userId = await GetUserId(context, auth, storage, requireAuth: false);
     if (userId is null) return Unauthorized("Not authenticated.");
@@ -166,11 +166,12 @@ feedApi.MapGet("/", async (HttpContext context, AuthService auth, FeedStorageSer
     var p = Math.Max(1, page ?? 1);
     var ps = Math.Clamp(pageSize ?? 20, 1, 100);
 
-    var feeds = await storage.GetAllFeedsAsync(userId);
-    var digest = await storage.GetDailyDigestAsync(userId);
+    var feeds = await storage.GetAllFeedsAsync(userId, bookmarked == true);
+    var digest = bookmarked == true ? null : await storage.GetDailyDigestAsync(userId);
     var allArticles = feeds
         .SelectMany(f => f.Articles.Select(a => new ArticleResponse(
-            a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId, a.EnclosureUrl, a.EnclosureType)))
+            a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId,
+            a.EnclosureUrl, a.EnclosureType, a.IsBookmarked)))
         .OrderByDescending(a => a.Published)
         .ToList();
 
@@ -184,7 +185,8 @@ feedApi.MapGet("/", async (HttpContext context, AuthService auth, FeedStorageSer
     var feedResponses = feeds.Select(f => new FeedResponse(
         f.Id, f.Title, f.FeedUrl, f.SiteUrl, f.Description, f.LastRefreshed,
         f.Articles.Select(a => new ArticleResponse(
-            a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId, a.EnclosureUrl, a.EnclosureType)).ToList()
+            a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId,
+            a.EnclosureUrl, a.EnclosureType, a.IsBookmarked)).ToList()
     )).ToList();
 
     return Results.Ok(new
@@ -288,6 +290,16 @@ articleApi.MapPost("/summarize-today", async (HttpContext context,
     return Results.Ok(new { digest = summary });
 });
 
+articleApi.MapPost("/{id}/toggle-bookmark", async (string id, HttpContext context,
+    AuthService auth, FeedStorageService storage) =>
+{
+    var userId = await GetUserId(context, auth, storage, requireAuth: false);
+    if (userId is null) return Unauthorized("Not authenticated.");
+
+    var bookmarked = await storage.ToggleBookmarkAsync(userId, id);
+    return Results.Ok(new { bookmarked });
+});
+
 app.Run();
 
 static FeedResponse MapFeedResponse(Feed feed)
@@ -296,7 +308,8 @@ static FeedResponse MapFeedResponse(Feed feed)
         feed.Id, feed.Title, feed.FeedUrl, feed.SiteUrl, feed.Description,
         feed.LastRefreshed,
         feed.Articles.Select(a => new ArticleResponse(
-            a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId, a.EnclosureUrl, a.EnclosureType
+            a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId,
+            a.EnclosureUrl, a.EnclosureType, a.IsBookmarked
         )).ToList()
     );
 }

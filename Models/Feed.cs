@@ -31,6 +31,7 @@ public class Article
     public string FeedId { get; set; } = string.Empty;
     public string EnclosureUrl { get; set; } = string.Empty;
     public string EnclosureType { get; set; } = string.Empty;
+    public bool IsBookmarked { get; set; }
 }
 
 public class DailyDigest

@@ -20,7 +20,8 @@ public record ArticleResponse(
     DateTime Published,
     string FeedId,
     string? EnclosureUrl,
-    string? EnclosureType
+    string? EnclosureType,
+    bool IsBookmarked
 );
 
 public record SummarizeResponse(string? Digest, string Error);

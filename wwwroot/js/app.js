@@ -3,6 +3,7 @@ const state = {
     articles: [],
     digest: null,
     selectedFeedId: null,
+    showingBookmarks: false,
     loading: false,
     currentPage: 1,
     totalPages: 1,
@@ -381,9 +382,8 @@ async function fetchFeeds(page = state.currentPage) {
 
     try {
         let url = '/api/feeds?page=' + page + '&pageSize=' + state.pageSize;
-        if (state.selectedFeedId) {
-            url += '&feedId=' + state.selectedFeedId;
-        }
+        if (state.showingBookmarks) url += '&bookmarked=true';
+        else if (state.selectedFeedId) url += '&feedId=' + state.selectedFeedId;
 
         const response = await apiFetch(url);
         if (!response.ok) throw new Error('Server error: ' + response.status);
@@ -546,6 +546,12 @@ function toggleFeedSelection(feed) {
     fetchFeeds(1);
 }
 
+async function toggleBookmark(articleId) {
+    const response = await apiFetch('/api/articles/' + articleId + '/toggle-bookmark', { method: 'POST' });
+    const data = await response.json();
+    return data.bookmarked;
+}
+
 function renderFeeds() {
     elements.feedList.innerHTML = '';
 
@@ -601,6 +607,30 @@ function renderFeeds() {
 
         elements.feedList.appendChild(template);
     });
+
+    var bmLi = document.createElement('li');
+    bmLi.className = 'feed-item feed-item-bookmarks';
+    bmLi.setAttribute('role', 'button');
+    bmLi.setAttribute('tabindex', '0');
+    var bmTitle = document.createElement('span');
+    bmTitle.className = 'feed-item-title';
+    bmTitle.textContent = 'Bookmarks \u2605';
+    bmLi.appendChild(bmTitle);
+    if (state.showingBookmarks) bmLi.classList.add('active');
+    bmLi.addEventListener('click', function () {
+        state.showingBookmarks = !state.showingBookmarks;
+        state.selectedFeedId = null;
+        fetchFeeds(1);
+    });
+    bmLi.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            state.showingBookmarks = !state.showingBookmarks;
+            state.selectedFeedId = null;
+            fetchFeeds(1);
+        }
+    });
+    elements.feedList.appendChild(bmLi);
 }
 
 function renderArticles() {
@@ -629,6 +659,19 @@ function renderArticles() {
 
         badgeEl.textContent = feedTitle;
         dateEl.textContent = formatDate(article.published);
+
+        const bookmarkBtn = template.querySelector('.bookmark-btn');
+        bookmarkBtn.textContent = article.isBookmarked ? '\u2605' : '\u2606';
+        bookmarkBtn.title = article.isBookmarked ? 'Remove bookmark' : 'Bookmark';
+        bookmarkBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            toggleBookmark(article.id).then(function (bookmarked) {
+                article.isBookmarked = bookmarked;
+                bookmarkBtn.textContent = bookmarked ? '\u2605' : '\u2606';
+                bookmarkBtn.title = bookmarked ? 'Remove bookmark' : 'Bookmark';
+            });
+        });
+
         titleLinkEl.textContent = article.title;
         titleLinkEl.href = article.url;
 
