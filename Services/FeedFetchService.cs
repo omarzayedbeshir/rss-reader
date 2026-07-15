@@ -12,10 +12,12 @@ public class FeedFetchService
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly HtmlSanitizer _sanitizer;
+    private readonly ILogger<FeedFetchService> _logger;
 
-    public FeedFetchService(IHttpClientFactory httpClientFactory)
+    public FeedFetchService(IHttpClientFactory httpClientFactory, ILogger<FeedFetchService> logger)
     {
         _httpClientFactory = httpClientFactory;
+        _logger = logger;
         _sanitizer = new HtmlSanitizer();
         _sanitizer.AllowedTags.Add("img");
         _sanitizer.AllowedTags.Add("figure");
@@ -47,7 +49,7 @@ public class FeedFetchService
             LastRefreshed = DateTime.UtcNow
         };
 
-        feed.Articles = syndicationFeed.Items.Select(item =>
+        var items = syndicationFeed.Items.Select(item =>
         {
             var summary = item.Summary?.Text;
             if (string.IsNullOrWhiteSpace(summary) && item.Content is TextSyndicationContent content)
@@ -81,7 +83,12 @@ public class FeedFetchService
                 EnclosureUrl = enclosureUrl,
                 EnclosureType = enclosureType
             };
-        }).Where(a => a.Published >= DateTime.UtcNow.AddDays(-30)).ToList();
+        }).ToList();
+
+        var totalCount = items.Count;
+        feed.Articles = items.Where(a => a.Published >= DateTime.UtcNow.AddDays(-30)).ToList();
+        _logger.LogInformation("Feed {Url}: {Total} parsed, {Kept} kept after 30-day filter", 
+            url, totalCount, feed.Articles.Count);
 
         return feed;
     }
