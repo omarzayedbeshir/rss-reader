@@ -132,9 +132,9 @@ authApi.MapPost("/resend-verification", async (ResendVerificationRequest request
     }
 });
 
-authApi.MapPost("/signout", async (HttpContext context, AuthService auth) =>
+authApi.MapPost("/signout", async (HttpContext context, AuthService auth, FeedStorageService storage) =>
 {
-    var userId = await GetUserId(context, auth);
+    var userId = await GetUserId(context, auth, storage, requireAuth: true);
     if (userId is null) return Unauthorized("Not authenticated.");
 
     var token = ExtractToken(context);
@@ -144,9 +144,9 @@ authApi.MapPost("/signout", async (HttpContext context, AuthService auth) =>
     return Results.Ok(new { ok = true });
 });
 
-authApi.MapGet("/me", async (HttpContext context, AuthService auth) =>
+authApi.MapGet("/me", async (HttpContext context, AuthService auth, FeedStorageService storage) =>
 {
-    var userId = await GetUserId(context, auth);
+    var userId = await GetUserId(context, auth, storage, requireAuth: true);
     if (userId is null) return Unauthorized("Not authenticated.");
 
     var user = await auth.GetUserAsync(userId);
@@ -160,7 +160,7 @@ var feedApi = app.MapGroup("/api/feeds");
 feedApi.MapGet("/", async (HttpContext context, AuthService auth, FeedStorageService storage,
     int? page, int? pageSize, string? feedId) =>
 {
-    var userId = await GetUserId(context, auth);
+    var userId = await GetUserId(context, auth, storage, requireAuth: false);
     if (userId is null) return Unauthorized("Not authenticated.");
 
     var p = Math.Max(1, page ?? 1);
@@ -203,7 +203,7 @@ feedApi.MapGet("/", async (HttpContext context, AuthService auth, FeedStorageSer
 feedApi.MapPost("/", async (FeedAddRequest request, HttpContext context,
     AuthService auth, FeedStorageService storage, FeedFetchService fetcher) =>
 {
-    var userId = await GetUserId(context, auth);
+    var userId = await GetUserId(context, auth, storage, requireAuth: false);
     if (userId is null) return Unauthorized("Not authenticated.");
 
     if (string.IsNullOrWhiteSpace(request.Url) || !Uri.TryCreate(request.Url, UriKind.Absolute, out var uri)
@@ -227,7 +227,7 @@ feedApi.MapPost("/", async (FeedAddRequest request, HttpContext context,
 feedApi.MapDelete("/{id}", async (string id, HttpContext context,
     AuthService auth, FeedStorageService storage) =>
 {
-    var userId = await GetUserId(context, auth);
+    var userId = await GetUserId(context, auth, storage, requireAuth: false);
     if (userId is null) return Unauthorized("Not authenticated.");
 
     var feed = await storage.GetFeedAsync(id, userId);
@@ -241,7 +241,7 @@ feedApi.MapDelete("/{id}", async (string id, HttpContext context,
 feedApi.MapPost("/{id}/refresh", async (string id, HttpContext context,
     AuthService auth, FeedStorageService storage, FeedFetchService fetcher) =>
 {
-    var userId = await GetUserId(context, auth);
+    var userId = await GetUserId(context, auth, storage, requireAuth: false);
     if (userId is null) return Unauthorized("Not authenticated.");
 
     var existingFeed = await storage.GetFeedAsync(id, userId);
@@ -268,8 +268,8 @@ var articleApi = app.MapGroup("/api/articles");
 articleApi.MapPost("/summarize-today", async (HttpContext context,
     AuthService auth, FeedStorageService storage, AiService ai) =>
 {
-    var userId = await GetUserId(context, auth);
-    if (userId is null) return Unauthorized("Not authenticated.");
+    var userId = await GetUserId(context, auth, storage, requireAuth: true);
+    if (userId is null) return Unauthorized("Sign in to use AI features.");
 
     var articles = await storage.GetTodayArticlesAsync(userId);
     if (articles.Count == 0)
@@ -301,13 +301,23 @@ static FeedResponse MapFeedResponse(Feed feed)
     );
 }
 
-static async Task<string?> GetUserId(HttpContext context, AuthService auth)
+static async Task<string?> GetUserId(HttpContext context, AuthService auth,
+    FeedStorageService storage, bool requireAuth)
 {
     var header = context.Request.Headers.Authorization.ToString();
-    if (string.IsNullOrEmpty(header) || !header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-        return null;
-    var token = header["Bearer ".Length..];
-    return await auth.ValidateSessionAsync(token);
+    if (!string.IsNullOrEmpty(header) && header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+    {
+        var token = header["Bearer ".Length..];
+        return await auth.ValidateSessionAsync(token);
+    }
+
+    if (requireAuth) return null;
+
+    var anonId = context.Request.Headers["X-User-Id"].ToString();
+    if (!string.IsNullOrEmpty(anonId))
+        return await storage.GetOrCreateAnonymousUserAsync(anonId);
+
+    return null;
 }
 
 static string? ExtractToken(HttpContext context)

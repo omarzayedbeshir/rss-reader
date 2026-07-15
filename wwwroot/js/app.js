@@ -9,7 +9,8 @@ const state = {
     pageSize: 20,
     token: localStorage.getItem('token') || null,
     email: localStorage.getItem('email') || null,
-    userId: localStorage.getItem('userId') || null
+    userId: localStorage.getItem('userId') || null,
+    anonymousId: localStorage.getItem('anonymousId') || null
 };
 
 const elements = {
@@ -57,6 +58,8 @@ function authHeaders() {
     const headers = { 'Content-Type': 'application/json' };
     if (state.token) {
         headers['Authorization'] = 'Bearer ' + state.token;
+    } else if (state.anonymousId) {
+        headers['X-User-Id'] = state.anonymousId;
     }
     return headers;
 }
@@ -75,23 +78,23 @@ async function apiFetch(url, options = {}) {
 }
 
 async function checkAuth() {
-    if (!state.token) {
+    if (state.token) {
+        try {
+            const response = await apiFetch('/api/auth/me');
+            if (response.ok) { showAppView(); return; }
+        } catch {}
+        clearAuth();
+        if (state.anonymousId) { showAppView(); return; }
         showAuthView();
         return;
     }
 
-    try {
-        const response = await apiFetch('/api/auth/me');
-        if (!response.ok) {
-            clearAuth();
-            showAuthView();
-            return;
-        }
+    if (state.anonymousId) {
         showAppView();
-    } catch {
-        clearAuth();
-        showAuthView();
+        return;
     }
+
+    showAuthView();
 }
 
 function clearAuth() {
@@ -106,13 +109,45 @@ function clearAuth() {
 function showAuthView() {
     elements.authView.classList.remove('hidden');
     elements.appView.classList.add('hidden');
+    elements.signoutBtn.textContent = t('signOut');
+    elements.signoutBtn.onclick = signOut;
     checkVerifiedParam();
+}
+
+function showAuthScreen() {
+    clearAuth();
+    state.feeds = [];
+    state.articles = [];
+    state.selectedFeedId = null;
+    state.digest = null;
+    showAuthView();
+}
+
+function continueAsGuest() {
+    if (!state.anonymousId) {
+        state.anonymousId = crypto.randomUUID();
+        localStorage.setItem('anonymousId', state.anonymousId);
+    }
+    state.token = null;
+    state.email = null;
+    state.userId = null;
+    localStorage.removeItem('token');
+    localStorage.removeItem('email');
+    localStorage.removeItem('userId');
+    showAppView();
 }
 
 function showAppView() {
     elements.authView.classList.add('hidden');
     elements.appView.classList.remove('hidden');
-    elements.currentUser.textContent = state.email || '';
+    elements.currentUser.textContent = state.token ? (state.email || '') : '';
+    if (!state.token) {
+        elements.signoutBtn.textContent = t('signIn');
+        elements.signoutBtn.onclick = showAuthScreen;
+    } else {
+        elements.signoutBtn.textContent = t('signOut');
+        elements.signoutBtn.onclick = signOut;
+    }
     fetchFeeds(1);
 }
 
@@ -289,6 +324,8 @@ async function init() {
     document.getElementById('auth-password').placeholder = t('passwordPlaceholder');
     document.getElementById('auth-submit').textContent = t('signIn');
     document.getElementById('auth-toggle-btn').textContent = t('createAccount');
+    var guestBtn = document.getElementById('guest-btn');
+    if (guestBtn) guestBtn.textContent = t('guestContinue');
     document.getElementById('signout-btn').textContent = t('signOut');
     document.getElementById('refresh-all-btn').textContent = t('refreshAll');
     document.getElementById('refresh-all-btn').title = t('refreshAll');
@@ -302,6 +339,9 @@ async function init() {
     elements.authToggleBtn.addEventListener('click', toggleAuthMode);
     elements.resendVerificationBtn.addEventListener('click', resendVerification);
     elements.signoutBtn.addEventListener('click', signOut);
+
+    var guestBtn = document.getElementById('guest-btn');
+    if (guestBtn) guestBtn.addEventListener('click', continueAsGuest);
 
     elements.refreshAllBtn.addEventListener('click', () => refreshAllFeeds());
     elements.summarizeTodayBtn.addEventListener('click', () => summarizeToday());
@@ -439,6 +479,11 @@ async function refreshAllFeeds() {
 }
 
 async function summarizeToday() {
+    if (!state.token) {
+        showError('Sign in to use AI features.');
+        return;
+    }
+
     elements.summarizeTodayBtn.disabled = true;
     elements.summarizeTodayBtn.textContent = 'Summarizing...';
 
@@ -482,6 +527,14 @@ function updateSummarizeBanner() {
     if (!state.digest && hasTodayArticles) {
         const count = state.articles.filter(a => new Date(a.published) >= todayStart).length;
         elements.summarizeBannerText.textContent = count + ' article' + (count !== 1 ? 's' : '') + ' from today. ';
+        if (!state.token) {
+            elements.summarizeBannerText.textContent += 'Sign in to summarize.';
+            elements.summarizeTodayBtn.textContent = 'Sign In';
+            elements.summarizeTodayBtn.onclick = showAuthScreen;
+        } else {
+            elements.summarizeTodayBtn.textContent = 'Summarize Today';
+            elements.summarizeTodayBtn.onclick = summarizeToday;
+        }
         elements.summarizeBanner.classList.remove('hidden');
     } else {
         elements.summarizeBanner.classList.add('hidden');

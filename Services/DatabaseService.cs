@@ -87,5 +87,10 @@ public class DatabaseService
 
         try { await conn.ExecuteAsync("ALTER TABLE articles ADD COLUMN enclosure_url TEXT DEFAULT ''"); } catch { }
         try { await conn.ExecuteAsync("ALTER TABLE articles ADD COLUMN enclosure_type TEXT DEFAULT ''"); } catch { }
+        try { await conn.ExecuteAsync("ALTER TABLE users ADD COLUMN last_accessed_at TEXT"); } catch { }
+
+        await conn.ExecuteAsync(
+            "DELETE FROM users WHERE email LIKE 'anon_%@demo.local' " +
+            "AND (last_accessed_at IS NULL OR datetime(last_accessed_at) < datetime('now', '-7 days'))");
     }
 }

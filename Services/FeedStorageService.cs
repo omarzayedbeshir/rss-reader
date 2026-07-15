@@ -131,6 +131,25 @@ public class FeedStorageService
             new { UserId = userId, Summary = summary });
     }
 
+    public async Task<string> GetOrCreateAnonymousUserAsync(string anonymousId)
+    {
+        using var conn = _db.OpenConnection();
+        var exists = await conn.QueryFirstOrDefaultAsync<string>(
+            "SELECT id FROM users WHERE id = @Id", new { Id = anonymousId });
+        if (exists is not null)
+        {
+            await conn.ExecuteAsync(
+                "UPDATE users SET last_accessed_at = datetime('now') WHERE id = @Id",
+                new { Id = anonymousId });
+            return exists;
+        }
+        await conn.ExecuteAsync(
+            "INSERT INTO users (id, email, password_hash, email_verified, last_accessed_at) " +
+            "VALUES (@Id, @Email, '', 0, datetime('now'))",
+            new { Id = anonymousId, Email = $"anon_{anonymousId}@demo.local" });
+        return anonymousId;
+    }
+
     public async Task<List<Article>> GetTodayArticlesAsync(string userId)
     {
         using var conn = _db.OpenConnection();
