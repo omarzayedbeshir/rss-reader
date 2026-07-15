@@ -11,7 +11,8 @@ const state = {
     token: localStorage.getItem('token') || null,
     email: localStorage.getItem('email') || null,
     userId: localStorage.getItem('userId') || null,
-    anonymousId: localStorage.getItem('anonymousId') || null
+    anonymousId: localStorage.getItem('anonymousId') || null,
+    autoRefreshTimerId: null
 };
 
 const elements = {
@@ -112,6 +113,10 @@ function showAuthView() {
     elements.appView.classList.add('hidden');
     elements.signoutBtn.textContent = t('signOut');
     elements.signoutBtn.onclick = signOut;
+    if (state.autoRefreshTimerId) {
+        clearInterval(state.autoRefreshTimerId);
+        state.autoRefreshTimerId = null;
+    }
     checkVerifiedParam();
 }
 
@@ -150,6 +155,9 @@ function showAppView() {
         elements.signoutBtn.onclick = signOut;
     }
     fetchFeeds(1);
+    if (!state.autoRefreshTimerId) {
+        state.autoRefreshTimerId = setInterval(refreshAllFeeds, 600000);
+    }
 }
 
 function showAuthFields() {
