@@ -24,7 +24,8 @@ public class FeedStorageService
         foreach (var feed in feeds)
         {
             feed.Articles = (await conn.QueryAsync<Article>(
-                "SELECT id, title, url, summary, published, feed_id AS FeedId " +
+                "SELECT id, title, url, summary, published, feed_id AS FeedId, " +
+                "enclosure_url AS EnclosureUrl, enclosure_type AS EnclosureType " +
                 "FROM articles WHERE feed_id = @FeedId ORDER BY published DESC",
                 new { FeedId = feed.Id })).ToList();
         }
@@ -43,7 +44,8 @@ public class FeedStorageService
         if (feed is not null)
         {
             feed.Articles = (await conn.QueryAsync<Article>(
-                "SELECT id, title, url, summary, published, feed_id AS FeedId " +
+                "SELECT id, title, url, summary, published, feed_id AS FeedId, " +
+                "enclosure_url AS EnclosureUrl, enclosure_type AS EnclosureType " +
                 "FROM articles WHERE feed_id = @FeedId ORDER BY published DESC",
                 new { FeedId = feed.Id })).ToList();
         }
@@ -150,16 +152,18 @@ public class FeedStorageService
         for (int i = 0; i < articles.Count; i++)
         {
             var a = articles[i];
-            rows.Add($"(@Id{i}, @FeedId{i}, @Title{i}, @Url{i}, @Summary{i}, @Published{i})");
+            rows.Add($"(@Id{i}, @FeedId{i}, @Title{i}, @Url{i}, @Summary{i}, @Published{i}, @EnclosureUrl{i}, @EnclosureType{i})");
             parameters.Add($"Id{i}", a.Id);
             parameters.Add($"FeedId{i}", a.FeedId);
             parameters.Add($"Title{i}", a.Title);
             parameters.Add($"Url{i}", a.Url);
             parameters.Add($"Summary{i}", a.Summary);
             parameters.Add($"Published{i}", a.Published);
+            parameters.Add($"EnclosureUrl{i}", a.EnclosureUrl);
+            parameters.Add($"EnclosureType{i}", a.EnclosureType);
         }
 
-        var sql = "INSERT INTO articles (id, feed_id, title, url, summary, published) VALUES " +
+        var sql = "INSERT INTO articles (id, feed_id, title, url, summary, published, enclosure_url, enclosure_type) VALUES " +
                   string.Join(", ", rows);
         await conn.ExecuteAsync(sql, parameters, tx);
     }

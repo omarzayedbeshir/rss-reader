@@ -579,6 +579,13 @@ function renderArticles() {
         titleLinkEl.textContent = article.title;
         titleLinkEl.href = article.url;
 
+        const audioEl = template.querySelector('.article-audio');
+        if (article.enclosureUrl) {
+            audioEl.src = article.enclosureUrl;
+            audioEl.type = article.enclosureType || 'audio/mpeg';
+            audioEl.classList.remove('hidden');
+        }
+
         if (isRtl(article.title) || isRtl(article.summary)) {
             articleEl.setAttribute('dir', 'rtl');
             summaryEl.setAttribute('dir', 'rtl');

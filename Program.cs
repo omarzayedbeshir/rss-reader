@@ -170,7 +170,7 @@ feedApi.MapGet("/", async (HttpContext context, AuthService auth, FeedStorageSer
     var digest = await storage.GetDailyDigestAsync(userId);
     var allArticles = feeds
         .SelectMany(f => f.Articles.Select(a => new ArticleResponse(
-            a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId)))
+            a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId, a.EnclosureUrl, a.EnclosureType)))
         .OrderByDescending(a => a.Published)
         .ToList();
 
@@ -184,7 +184,7 @@ feedApi.MapGet("/", async (HttpContext context, AuthService auth, FeedStorageSer
     var feedResponses = feeds.Select(f => new FeedResponse(
         f.Id, f.Title, f.FeedUrl, f.SiteUrl, f.Description, f.LastRefreshed,
         f.Articles.Select(a => new ArticleResponse(
-            a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId)).ToList()
+            a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId, a.EnclosureUrl, a.EnclosureType)).ToList()
     )).ToList();
 
     return Results.Ok(new
@@ -296,7 +296,7 @@ static FeedResponse MapFeedResponse(Feed feed)
         feed.Id, feed.Title, feed.FeedUrl, feed.SiteUrl, feed.Description,
         feed.LastRefreshed,
         feed.Articles.Select(a => new ArticleResponse(
-            a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId
+            a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId, a.EnclosureUrl, a.EnclosureType
         )).ToList()
     );
 }

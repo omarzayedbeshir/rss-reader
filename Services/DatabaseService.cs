@@ -84,5 +84,8 @@ public class DatabaseService
             CREATE INDEX IF NOT EXISTS idx_feeds_user_id ON feeds(user_id);
             CREATE INDEX IF NOT EXISTS idx_articles_feed_id ON articles(feed_id);
         ");
+
+        try { await conn.ExecuteAsync("ALTER TABLE articles ADD COLUMN enclosure_url TEXT DEFAULT ''"); } catch { }
+        try { await conn.ExecuteAsync("ALTER TABLE articles ADD COLUMN enclosure_type TEXT DEFAULT ''"); } catch { }
     }
 }

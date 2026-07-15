@@ -18,7 +18,9 @@ public record ArticleResponse(
     string Url,
     string Summary,
     DateTime Published,
-    string FeedId
+    string FeedId,
+    string? EnclosureUrl,
+    string? EnclosureType
 );
 
 public record SummarizeResponse(string? Digest, string Error);

@@ -53,13 +53,33 @@ public class FeedFetchService
             if (string.IsNullOrWhiteSpace(summary) && item.Content is TextSyndicationContent content)
                 summary = content.Text;
 
+            string articleUrl = "";
+            string enclosureUrl = "";
+            string enclosureType = "";
+
+            foreach (var link in item.Links)
+            {
+                if (link.RelationshipType == "enclosure" &&
+                    link.MediaType != null && link.MediaType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
+                {
+                    enclosureUrl = link.Uri?.ToString() ?? "";
+                    enclosureType = link.MediaType;
+                }
+                else if (string.IsNullOrEmpty(articleUrl) && link.Uri is not null)
+                {
+                    articleUrl = link.Uri.ToString();
+                }
+            }
+
             return new Article
             {
                 Title = SanitizeText(item.Title?.Text ?? "Untitled"),
-                Url = SanitizeUrl(item.Links.FirstOrDefault()?.Uri?.ToString() ?? string.Empty),
+                Url = SanitizeUrl(articleUrl),
                 Summary = Sanitize(summary ?? string.Empty),
                 Published = GetPublishedDate(item),
-                FeedId = feed.Id
+                FeedId = feed.Id,
+                EnclosureUrl = enclosureUrl,
+                EnclosureType = enclosureType
             };
         }).ToList();
 

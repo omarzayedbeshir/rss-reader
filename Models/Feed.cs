@@ -29,6 +29,8 @@ public class Article
     public string Summary { get; set; } = string.Empty;
     public DateTime Published { get; set; } = DateTime.UtcNow;
     public string FeedId { get; set; } = string.Empty;
+    public string EnclosureUrl { get; set; } = string.Empty;
+    public string EnclosureType { get; set; } = string.Empty;
 }
 
 public class DailyDigest

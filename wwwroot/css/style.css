@@ -547,6 +547,12 @@ body {
     text-decoration: underline;
 }
 
+.article-audio {
+    width: 100%;
+    margin: 10px 0;
+    border-radius: 8px;
+}
+
 .summarize-banner {
     display: flex;
     align-items: center;
