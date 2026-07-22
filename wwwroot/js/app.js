@@ -866,6 +866,7 @@ async function loadPosts() {
     elements.summarizeBanner.classList.add('hidden');
     elements.error.classList.add('hidden');
     elements.pagination.classList.add('hidden');
+    renderFeedUrl();
 
     try {
         var response = await apiFetch('/api/posts');

@@ -85,6 +85,24 @@ public class AuthService
         if (!emailVerified)
             throw new UnauthorizedAccessException("Email not verified. Check your inbox or request a new verification email.");
 
+        var handle = (string?)row.handle;
+        if (string.IsNullOrEmpty(handle))
+        {
+            var baseHandle = GenerateBaseHandle(email);
+            handle = baseHandle;
+            var suffix = 0;
+            while (await conn.QueryFirstOrDefaultAsync<string>(
+                "SELECT id FROM users WHERE handle = @Handle AND id != @UserId",
+                new { Handle = handle, UserId = userId }) is not null)
+            {
+                suffix++;
+                handle = $"{baseHandle}-{suffix:X3}";
+            }
+            await conn.ExecuteAsync(
+                "UPDATE users SET handle = @Handle WHERE id = @Id",
+                new { Handle = handle, Id = userId });
+        }
+
         var sessionId = Guid.NewGuid().ToString("N")[..12];
         var token = Guid.NewGuid().ToString("N");
         var expiresAt = DateTime.UtcNow.AddDays(30).ToString("O");
@@ -92,7 +110,7 @@ public class AuthService
             "INSERT INTO sessions (id, user_id, token, expires_at) VALUES (@Id, @UserId, @Token, @ExpiresAt)",
             new { Id = sessionId, UserId = userId, Token = token, ExpiresAt = expiresAt });
 
-        return new AuthResponse(token, new UserResponse(userId, userEmail, emailVerified, (string)row.handle ?? ""));
+        return new AuthResponse(token, new UserResponse(userId, userEmail, emailVerified, handle));
     }
 
     public async Task VerifyEmailAsync(string verificationToken)
