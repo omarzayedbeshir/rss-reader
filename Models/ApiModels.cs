@@ -29,5 +29,9 @@ public record SummarizeResponse(string? Digest, string Error);
 public record SignUpRequest(string Email, string Password);
 public record SignInRequest(string Email, string Password);
 public record AuthResponse(string Token, UserResponse User);
-public record UserResponse(string Id, string Email, bool EmailVerified);
+public record UserResponse(string Id, string Email, bool EmailVerified, string? Handle);
 public record ResendVerificationRequest(string Email);
+
+public record CreatePostRequest(string Title, string Content);
+public record UpdatePostRequest(string Title, string Content);
+public record PostResponse(string Id, string Title, string Content, DateTime PublishedAt, DateTime UpdatedAt);

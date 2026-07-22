@@ -12,7 +12,11 @@ const state = {
     email: localStorage.getItem('email') || null,
     userId: localStorage.getItem('userId') || null,
     anonymousId: localStorage.getItem('anonymousId') || null,
-    autoRefreshTimerId: null
+    autoRefreshTimerId: null,
+    showingPosts: false,
+    posts: [],
+    editingPostId: null,
+    handle: localStorage.getItem('handle') || null
 };
 
 const elements = {
@@ -51,7 +55,22 @@ const elements = {
     pagination: document.getElementById('pagination'),
     prevPageBtn: document.getElementById('prev-page-btn'),
     nextPageBtn: document.getElementById('next-page-btn'),
-    pageInfo: document.getElementById('page-info')
+    pageInfo: document.getElementById('page-info'),
+    postsView: document.getElementById('posts-view'),
+    postList: document.getElementById('post-list'),
+    postEditor: document.getElementById('post-editor'),
+    postForm: document.getElementById('post-form'),
+    postTitleInput: document.getElementById('post-title'),
+    postContentInput: document.getElementById('post-content'),
+    newPostBtn: document.getElementById('new-post-btn'),
+    newPostHeaderBtn: document.getElementById('new-post-header-btn'),
+    cancelPostBtn: document.getElementById('cancel-post-btn'),
+    postEmpty: document.getElementById('post-empty'),
+    postItemTemplate: document.getElementById('post-item-template'),
+    feedUrlSection: document.getElementById('feed-url-section'),
+    feedUrlDisplay: document.getElementById('feed-url-display'),
+    copyFeedUrlBtn: document.getElementById('copy-feed-url-btn'),
+    feedUrlLabel: document.querySelector('.feed-url-label')
 };
 
 let authMode = 'signin';
@@ -83,7 +102,13 @@ async function checkAuth() {
     if (state.token) {
         try {
             const response = await apiFetch('/api/auth/me');
-            if (response.ok) { showAppView(); return; }
+            if (response.ok) {
+                const data = await response.json();
+                state.handle = data.handle || null;
+                if (state.handle) localStorage.setItem('handle', state.handle);
+                showAppView();
+                return;
+            }
         } catch {}
         clearAuth();
         if (state.anonymousId) { showAppView(); return; }
@@ -103,9 +128,11 @@ function clearAuth() {
     state.token = null;
     state.email = null;
     state.userId = null;
+    state.handle = null;
     localStorage.removeItem('token');
     localStorage.removeItem('email');
     localStorage.removeItem('userId');
+    localStorage.removeItem('handle');
 }
 
 function showAuthView() {
@@ -126,6 +153,8 @@ function showAuthScreen() {
     state.articles = [];
     state.selectedFeedId = null;
     state.digest = null;
+    state.showingPosts = false;
+    state.posts = [];
     showAuthView();
 }
 
@@ -137,9 +166,13 @@ function continueAsGuest() {
     state.token = null;
     state.email = null;
     state.userId = null;
+    state.handle = null;
+    state.showingPosts = false;
+    state.posts = [];
     localStorage.removeItem('token');
     localStorage.removeItem('email');
     localStorage.removeItem('userId');
+    localStorage.removeItem('handle');
     showAppView();
 }
 
@@ -150,11 +183,18 @@ function showAppView() {
     if (!state.token) {
         elements.signoutBtn.textContent = t('signIn');
         elements.signoutBtn.onclick = showAuthScreen;
+        elements.newPostHeaderBtn.classList.add('hidden');
     } else {
         elements.signoutBtn.textContent = t('signOut');
         elements.signoutBtn.onclick = signOut;
+        elements.newPostHeaderBtn.classList.remove('hidden');
     }
-    fetchFeeds(1);
+    renderFeedUrl();
+    if (state.showingPosts) {
+        loadPosts();
+    } else {
+        fetchFeeds(1);
+    }
     if (!state.autoRefreshTimerId) {
         state.autoRefreshTimerId = setInterval(refreshAllFeeds, 600000);
     }
@@ -192,9 +232,11 @@ async function signIn(email, password) {
     state.token = data.token;
     state.email = data.user.email;
     state.userId = data.user.id;
+    state.handle = data.user.handle || null;
     localStorage.setItem('token', data.token);
     localStorage.setItem('email', data.user.email);
     localStorage.setItem('userId', data.user.id);
+    if (state.handle) localStorage.setItem('handle', state.handle);
     showAppView();
 }
 
@@ -253,6 +295,8 @@ async function signOut() {
     state.articles = [];
     state.selectedFeedId = null;
     state.digest = null;
+    state.showingPosts = false;
+    state.posts = [];
     showAuthView();
 }
 
@@ -344,6 +388,17 @@ async function init() {
     document.getElementById('prev-page-btn').textContent = t('prev');
     document.getElementById('next-page-btn').textContent = t('next');
 
+    var postsTitle = elements.postsView.querySelector('.posts-title');
+    if (postsTitle) postsTitle.textContent = t('postsView');
+    if (elements.postTitleInput) elements.postTitleInput.placeholder = t('postTitle');
+    if (elements.postContentInput) elements.postContentInput.placeholder = t('postContent');
+    if (elements.newPostBtn) elements.newPostBtn.textContent = t('newPost');
+    if (elements.newPostHeaderBtn) elements.newPostHeaderBtn.textContent = t('newPost');
+    if (elements.cancelPostBtn) elements.cancelPostBtn.textContent = t('cancel');
+
+    var submitBtn = elements.postForm ? elements.postForm.querySelector('.btn-primary') : null;
+    if (submitBtn) submitBtn.textContent = t('save');
+
     elements.authForm.addEventListener('submit', handleAuthSubmit);
     elements.authToggleBtn.addEventListener('click', toggleAuthMode);
     elements.resendVerificationBtn.addEventListener('click', resendVerification);
@@ -376,6 +431,33 @@ async function init() {
         elements.feedUrlInput.value = '';
     });
 
+    if (elements.postForm) {
+        elements.postForm.addEventListener('submit', handlePostSubmit);
+    }
+    if (elements.newPostBtn) {
+        elements.newPostBtn.addEventListener('click', function () {
+            showPostEditor(null);
+        });
+    }
+    if (elements.newPostHeaderBtn) {
+        elements.newPostHeaderBtn.addEventListener('click', function () {
+            showPostEditor(null);
+        });
+    }
+    if (elements.cancelPostBtn) {
+        elements.cancelPostBtn.addEventListener('click', hidePostEditor);
+    }
+    if (elements.copyFeedUrlBtn) {
+        elements.copyFeedUrlBtn.addEventListener('click', function () {
+            elements.feedUrlDisplay.select();
+            document.execCommand('copy');
+            elements.copyFeedUrlBtn.textContent = t('urlCopied');
+            setTimeout(function () {
+                elements.copyFeedUrlBtn.textContent = t('copyUrl');
+            }, 2000);
+        });
+    }
+
     document.querySelectorAll('.lang-toggle-btn').forEach(function (btn) {
         btn.textContent = t('langLabel');
         btn.addEventListener('click', toggleLang);
@@ -385,6 +467,8 @@ async function init() {
 }
 
 async function fetchFeeds(page = state.currentPage) {
+    if (state.showingPosts) return loadPosts();
+
     showLoading();
     hideError();
 
@@ -563,6 +647,68 @@ async function toggleBookmark(articleId) {
 function renderFeeds() {
     elements.feedList.innerHTML = '';
 
+    if (state.token) {
+        var postsLi = document.createElement('li');
+        postsLi.className = 'feed-item feed-item-posts';
+        postsLi.setAttribute('role', 'button');
+        postsLi.setAttribute('tabindex', '0');
+        var postsTitle = document.createElement('span');
+        postsTitle.className = 'feed-item-title';
+        postsTitle.textContent = t('myPosts');
+        postsLi.appendChild(postsTitle);
+        if (state.showingPosts) postsLi.classList.add('active');
+        postsLi.addEventListener('click', function () {
+            state.showingPosts = !state.showingPosts;
+            if (state.showingPosts) {
+                state.selectedFeedId = null;
+                state.showingBookmarks = false;
+                loadPosts();
+            } else {
+                fetchFeeds(1);
+            }
+        });
+        postsLi.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                state.showingPosts = !state.showingPosts;
+                if (state.showingPosts) {
+                    state.selectedFeedId = null;
+                    state.showingBookmarks = false;
+                    loadPosts();
+                } else {
+                    fetchFeeds(1);
+                }
+            }
+        });
+        elements.feedList.appendChild(postsLi);
+    }
+
+    var bmLi = document.createElement('li');
+    bmLi.className = 'feed-item feed-item-bookmarks';
+    bmLi.setAttribute('role', 'button');
+    bmLi.setAttribute('tabindex', '0');
+    var bmTitle = document.createElement('span');
+    bmTitle.className = 'feed-item-title';
+    bmTitle.textContent = 'Bookmarks \u2605';
+    bmLi.appendChild(bmTitle);
+    if (state.showingBookmarks) bmLi.classList.add('active');
+    bmLi.addEventListener('click', function () {
+        state.showingBookmarks = !state.showingBookmarks;
+        state.selectedFeedId = null;
+        state.showingPosts = false;
+        fetchFeeds(1);
+    });
+    bmLi.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            state.showingBookmarks = !state.showingBookmarks;
+            state.selectedFeedId = null;
+            state.showingPosts = false;
+            fetchFeeds(1);
+        }
+    });
+    elements.feedList.appendChild(bmLi);
+
     state.feeds.forEach(feed => {
         const template = elements.feedItemTemplate.content.cloneNode(true);
         const li = template.querySelector('.feed-item');
@@ -615,30 +761,6 @@ function renderFeeds() {
 
         elements.feedList.appendChild(template);
     });
-
-    var bmLi = document.createElement('li');
-    bmLi.className = 'feed-item feed-item-bookmarks';
-    bmLi.setAttribute('role', 'button');
-    bmLi.setAttribute('tabindex', '0');
-    var bmTitle = document.createElement('span');
-    bmTitle.className = 'feed-item-title';
-    bmTitle.textContent = 'Bookmarks \u2605';
-    bmLi.appendChild(bmTitle);
-    if (state.showingBookmarks) bmLi.classList.add('active');
-    bmLi.addEventListener('click', function () {
-        state.showingBookmarks = !state.showingBookmarks;
-        state.selectedFeedId = null;
-        fetchFeeds(1);
-    });
-    bmLi.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            state.showingBookmarks = !state.showingBookmarks;
-            state.selectedFeedId = null;
-            fetchFeeds(1);
-        }
-    });
-    elements.feedList.appendChild(bmLi);
 }
 
 function renderArticles() {
@@ -722,6 +844,150 @@ function renderPagination() {
     elements.nextPageBtn.disabled = state.currentPage >= state.totalPages;
 }
 
+function renderFeedUrl() {
+    if (state.token && state.handle) {
+        var url = window.location.protocol + '//' + window.location.host + '/api/feed/' + state.handle;
+        elements.feedUrlDisplay.value = url;
+        elements.feedUrlLabel.textContent = t('myFeedUrl');
+        elements.copyFeedUrlBtn.textContent = t('copyUrl');
+        elements.feedUrlSection.classList.remove('hidden');
+    } else {
+        elements.feedUrlSection.classList.add('hidden');
+    }
+}
+
+async function loadPosts() {
+    state.showingPosts = true;
+    elements.postsView.classList.remove('hidden');
+    elements.articleList.innerHTML = '';
+    elements.loading.classList.add('hidden');
+    elements.empty.classList.add('hidden');
+    elements.dailyDigest.classList.add('hidden');
+    elements.summarizeBanner.classList.add('hidden');
+    elements.error.classList.add('hidden');
+    elements.pagination.classList.add('hidden');
+
+    try {
+        var response = await apiFetch('/api/posts');
+        var data = await response.json();
+        state.posts = data || [];
+        renderFeeds();
+        renderPosts();
+    } catch (err) {
+        elements.postEmpty.innerHTML = '<p>' + tError(err.message) + '</p>';
+        elements.postEmpty.classList.remove('hidden');
+    }
+}
+
+function renderPosts() {
+    elements.postList.innerHTML = '';
+    elements.postEmpty.classList.add('hidden');
+
+    if (state.posts.length === 0) {
+        elements.postEmpty.innerHTML = '<p>' + t('noPosts') + '</p>';
+        elements.postEmpty.classList.remove('hidden');
+        return;
+    }
+
+    state.posts.forEach(function (post) {
+        var template = elements.postItemTemplate.content.cloneNode(true);
+        var div = template.querySelector('.post-item');
+        var titleEl = template.querySelector('.post-item-title');
+        var dateEl = template.querySelector('.post-item-date');
+        var contentEl = template.querySelector('.post-item-content');
+        var editBtn = template.querySelector('.post-edit-btn');
+        var deleteBtn = template.querySelector('.post-delete-btn');
+
+        titleEl.textContent = post.title;
+        dateEl.textContent = formatDate(post.publishedAt);
+        contentEl.textContent = post.content;
+
+        editBtn.textContent = t('editPost');
+        deleteBtn.textContent = t('deletePost');
+
+        editBtn.addEventListener('click', function () {
+            editPost(post);
+        });
+
+        deleteBtn.addEventListener('click', function () {
+            deletePost(post.id);
+        });
+
+        elements.postList.appendChild(template);
+    });
+}
+
+function showPostEditor(post) {
+    state.showingPosts = true;
+    elements.articleList.innerHTML = '';
+    elements.loading.classList.add('hidden');
+    elements.empty.classList.add('hidden');
+    elements.dailyDigest.classList.add('hidden');
+    elements.summarizeBanner.classList.add('hidden');
+    elements.error.classList.add('hidden');
+    elements.pagination.classList.add('hidden');
+    elements.postsView.classList.remove('hidden');
+    elements.postEditor.classList.remove('hidden');
+    renderFeeds();
+    if (post) {
+        elements.postTitleInput.value = post.title;
+        elements.postContentInput.value = post.content;
+        state.editingPostId = post.id;
+    } else {
+        elements.postTitleInput.value = '';
+        elements.postContentInput.value = '';
+        state.editingPostId = null;
+    }
+    elements.postTitleInput.focus();
+}
+
+function hidePostEditor() {
+    elements.postEditor.classList.add('hidden');
+    elements.postTitleInput.value = '';
+    elements.postContentInput.value = '';
+    state.editingPostId = null;
+}
+
+async function handlePostSubmit(e) {
+    e.preventDefault();
+    var title = elements.postTitleInput.value.trim();
+    var content = elements.postContentInput.value.trim();
+    if (!title) return;
+
+    try {
+        if (state.editingPostId) {
+            await apiFetch('/api/posts/' + state.editingPostId, {
+                method: 'PUT',
+                body: JSON.stringify({ title: title, content: content })
+            });
+        } else {
+            await apiFetch('/api/posts', {
+                method: 'POST',
+                body: JSON.stringify({ title: title, content: content })
+            });
+        }
+        hidePostEditor();
+        await loadPosts();
+    } catch (err) {
+        showError(tError(err.message));
+    }
+}
+
+function editPost(post) {
+    showPostEditor(post);
+}
+
+async function deletePost(postId) {
+    if (!confirm(t('deletePostConfirm'))) return;
+
+    try {
+        await apiFetch('/api/posts/' + postId, { method: 'DELETE' });
+        await loadPosts();
+    } catch (err) {
+        showError(tError(err.message));
+    }
+}
+
 function isRtl(text) {
     if (!text) return false;
     return /[\u0591-\u08FF\uFB1D-\uFDFD\uFE70-\uFEFC]/.test(text);
@@ -755,6 +1021,7 @@ function showLoading() {
     elements.summarizeBanner.classList.add('hidden');
     elements.dailyDigest.classList.add('hidden');
     elements.articleList.innerHTML = '';
+    elements.postsView.classList.add('hidden');
 }
 
 function showError(message) {

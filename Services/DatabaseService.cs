@@ -87,6 +87,15 @@ public class DatabaseService
                 PRIMARY KEY (user_id, article_id)
             );
 
+            CREATE TABLE IF NOT EXISTS posts (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                published_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+
             CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
             CREATE INDEX IF NOT EXISTS idx_feeds_user_id ON feeds(user_id);
             CREATE INDEX IF NOT EXISTS idx_articles_feed_id ON articles(feed_id);
@@ -95,6 +104,8 @@ public class DatabaseService
         try { await conn.ExecuteAsync("ALTER TABLE articles ADD COLUMN enclosure_url TEXT DEFAULT ''"); } catch { }
         try { await conn.ExecuteAsync("ALTER TABLE articles ADD COLUMN enclosure_type TEXT DEFAULT ''"); } catch { }
         try { await conn.ExecuteAsync("ALTER TABLE users ADD COLUMN last_accessed_at TEXT"); } catch { }
+        try { await conn.ExecuteAsync("ALTER TABLE users ADD COLUMN handle TEXT"); } catch { }
+        try { await conn.ExecuteAsync("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_handle ON users(handle) WHERE handle IS NOT NULL"); } catch { }
 
         await conn.ExecuteAsync(
             "DELETE FROM users WHERE email LIKE 'anon_%@demo.local' " +

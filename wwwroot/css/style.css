@@ -395,6 +395,137 @@ body {
     color: var(--color-danger);
 }
 
+.feed-url-section {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-divider);
+}
+
+.feed-url-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-muted);
+    margin-bottom: 6px;
+}
+
+.feed-url-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.feed-url-input {
+    flex: 1;
+    font-size: 0.75rem;
+    padding: 6px 10px;
+    background: #fff;
+}
+
+/* Posts */
+.posts-view {
+    padding: 4px 0;
+}
+
+.posts-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.posts-title {
+    font-family: var(--font-serif);
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.post-editor {
+    margin-bottom: 24px;
+    padding: 20px;
+    background: #f8fafc;
+    border: 1px solid var(--color-divider);
+    border-radius: 8px;
+}
+
+.post-editor form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.post-input {
+    width: 100%;
+}
+
+.post-textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 120px;
+    font-family: var(--font-serif);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.post-form-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.post-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.post-item {
+    padding: 20px;
+    border: 1px solid var(--color-divider);
+    border-radius: 8px;
+    background: #fff;
+}
+
+.post-item-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.post-item-title {
+    font-family: var(--font-serif);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.post-item-date {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+.post-item-content {
+    font-family: var(--font-serif);
+    font-size: 0.92rem;
+    color: #444;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    margin-bottom: 12px;
+}
+
+.post-item-actions {
+    display: flex;
+    gap: 8px;
+}
+
+[dir="rtl"] .post-item-content {
+    text-align: right;
+}
+
 .article-list {
     display: flex;
     flex-direction: column;

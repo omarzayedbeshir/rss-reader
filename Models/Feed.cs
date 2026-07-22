@@ -19,6 +19,7 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
     public bool EmailVerified { get; set; }
     public string VerificationToken { get; set; } = string.Empty;
+    public string Handle { get; set; } = string.Empty;
 }
 
 public class Article

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using RssReader.Models;
@@ -239,6 +240,93 @@ public class FeedStorageService
             "INSERT INTO bookmarks (user_id, article_id) VALUES (@UserId, @ArticleId)",
             new { UserId = userId, ArticleId = articleId });
         return true;
+    }
+
+    public async Task<List<Post>> GetUserPostsAsync(string userId)
+    {
+        using var conn = _db.OpenConnection();
+        return (await conn.QueryAsync<Post>(
+            "SELECT id, user_id AS UserId, title, content, published_at AS PublishedAt, updated_at AS UpdatedAt FROM posts WHERE user_id = @UserId ORDER BY published_at DESC",
+            new { UserId = userId })).ToList();
+    }
+
+    public async Task<Post?> GetPostAsync(string postId)
+    {
+        using var conn = _db.OpenConnection();
+        return await conn.QueryFirstOrDefaultAsync<Post>(
+            "SELECT id, user_id AS UserId, title, content, published_at AS PublishedAt, updated_at AS UpdatedAt FROM posts WHERE id = @Id",
+            new { Id = postId });
+    }
+
+    public async Task<Post> CreatePostAsync(Post post)
+    {
+        using var conn = _db.OpenConnection();
+        await conn.ExecuteAsync(
+            "INSERT INTO posts (id, user_id, title, content, published_at, updated_at) VALUES (@Id, @UserId, @Title, @Content, @PublishedAt, @UpdatedAt)",
+            post);
+        return post;
+    }
+
+    public async Task<Post> UpdatePostAsync(Post post, string userId)
+    {
+        using var conn = _db.OpenConnection();
+        post.UpdatedAt = DateTime.UtcNow;
+        await conn.ExecuteAsync(
+            "UPDATE posts SET title = @Title, content = @Content, updated_at = @UpdatedAt WHERE id = @Id AND user_id = @UserId",
+            new { post.Id, post.UserId, post.Title, post.Content, post.UpdatedAt });
+        return post;
+    }
+
+    public async Task<bool> DeletePostAsync(string postId, string userId)
+    {
+        using var conn = _db.OpenConnection();
+        var rows = await conn.ExecuteAsync(
+            "DELETE FROM posts WHERE id = @Id AND user_id = @UserId",
+            new { Id = postId, UserId = userId });
+        return rows > 0;
+    }
+
+    public async Task<string?> GetUserIdByHandleAsync(string handle)
+    {
+        using var conn = _db.OpenConnection();
+        return await conn.QueryFirstOrDefaultAsync<string>(
+            "SELECT id FROM users WHERE handle = @Handle",
+            new { Handle = handle });
+    }
+
+    public async Task<string?> GetUserHandleAsync(string userId)
+    {
+        using var conn = _db.OpenConnection();
+        return await conn.QueryFirstOrDefaultAsync<string>(
+            "SELECT handle FROM users WHERE id = @Id",
+            new { Id = userId });
+    }
+
+    public async Task<string> EnsureUserHandleAsync(string userId, string email)
+    {
+        using var conn = _db.OpenConnection();
+        var existing = await conn.QueryFirstOrDefaultAsync<string>(
+            "SELECT handle FROM users WHERE id = @Id",
+            new { Id = userId });
+        if (!string.IsNullOrEmpty(existing)) return existing;
+
+        var baseHandle = Regex.Replace(email.Split('@')[0].ToLowerInvariant(), "[^a-z0-9_-]", "");
+        if (string.IsNullOrEmpty(baseHandle)) baseHandle = "user";
+
+        var candidate = baseHandle;
+        var suffix = 0;
+        while (await conn.QueryFirstOrDefaultAsync<string>(
+            "SELECT id FROM users WHERE handle = @Handle AND id != @UserId",
+            new { Handle = candidate, UserId = userId }) is not null)
+        {
+            suffix++;
+            candidate = $"{baseHandle}-{suffix:X3}";
+        }
+
+        await conn.ExecuteAsync(
+            "UPDATE users SET handle = @Handle WHERE id = @Id",
+            new { Handle = candidate, Id = userId });
+        return candidate;
     }
 
     private static async Task InsertArticlesAsync(SqliteConnection conn, List<Article> articles, SqliteTransaction tx)

@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text;
 using RssReader.Models;
 using RssReader.Services;
 
@@ -152,7 +154,10 @@ authApi.MapGet("/me", async (HttpContext context, AuthService auth, FeedStorageS
     var user = await auth.GetUserAsync(userId);
     if (user is null) return Unauthorized("User not found.");
 
-    return Results.Ok(new { user.Id, user.Email, user.EmailVerified });
+    if (string.IsNullOrEmpty(user.Handle))
+        user.Handle = await storage.EnsureUserHandleAsync(userId, user.Email);
+
+    return Results.Ok(new { user.Id, user.Email, user.EmailVerified, user.Handle });
 });
 
 var feedApi = app.MapGroup("/api/feeds");
@@ -298,6 +303,99 @@ articleApi.MapPost("/{id}/toggle-bookmark", async (string id, HttpContext contex
 
     var bookmarked = await storage.ToggleBookmarkAsync(userId, id);
     return Results.Ok(new { bookmarked });
+});
+
+var postApi = app.MapGroup("/api/posts");
+
+postApi.MapGet("/", async (HttpContext context, AuthService auth, FeedStorageService storage) =>
+{
+    var userId = await GetUserId(context, auth, storage, requireAuth: true);
+    if (userId is null) return Unauthorized("Not authenticated.");
+
+    var posts = await storage.GetUserPostsAsync(userId);
+    return Results.Ok(posts.Select(p => new PostResponse(p.Id, p.Title, p.Content, p.PublishedAt, p.UpdatedAt)));
+});
+
+postApi.MapPost("/", async (CreatePostRequest request, HttpContext context,
+    AuthService auth, FeedStorageService storage) =>
+{
+    var userId = await GetUserId(context, auth, storage, requireAuth: true);
+    if (userId is null) return Unauthorized("Not authenticated.");
+
+    if (string.IsNullOrWhiteSpace(request.Title))
+        return BadRequest("Title is required.");
+
+    var post = new Post
+    {
+        UserId = userId,
+        Title = request.Title.Trim(),
+        Content = request.Content?.Trim() ?? ""
+    };
+
+    post = await storage.CreatePostAsync(post);
+    return Results.Ok(new PostResponse(post.Id, post.Title, post.Content, post.PublishedAt, post.UpdatedAt));
+});
+
+postApi.MapPut("/{id}", async (string id, UpdatePostRequest request, HttpContext context,
+    AuthService auth, FeedStorageService storage) =>
+{
+    var userId = await GetUserId(context, auth, storage, requireAuth: true);
+    if (userId is null) return Unauthorized("Not authenticated.");
+
+    var existing = await storage.GetPostAsync(id);
+    if (existing is null || existing.UserId != userId)
+        return Results.NotFound(new { error = "Post not found." });
+
+    if (string.IsNullOrWhiteSpace(request.Title))
+        return BadRequest("Title is required.");
+
+    existing.Title = request.Title.Trim();
+    existing.Content = request.Content?.Trim() ?? "";
+
+    await storage.UpdatePostAsync(existing, userId);
+    return Results.Ok(new PostResponse(existing.Id, existing.Title, existing.Content, existing.PublishedAt, existing.UpdatedAt));
+});
+
+postApi.MapDelete("/{id}", async (string id, HttpContext context,
+    AuthService auth, FeedStorageService storage) =>
+{
+    var userId = await GetUserId(context, auth, storage, requireAuth: true);
+    if (userId is null) return Unauthorized("Not authenticated.");
+
+    var deleted = await storage.DeletePostAsync(id, userId);
+    if (!deleted) return Results.NotFound(new { error = "Post not found." });
+    return Results.Ok(new { deleted = true });
+});
+
+app.MapGet("/api/feed/{handle}", async (string handle, FeedStorageService storage) =>
+{
+    var userId = await storage.GetUserIdByHandleAsync(handle);
+    if (userId is null) return Results.NotFound("User not found.");
+
+    var posts = await storage.GetUserPostsAsync(userId);
+
+    var sb = new StringBuilder();
+    sb.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+    sb.AppendLine("<rss version=\"2.0\">");
+    sb.AppendLine("<channel>");
+    sb.AppendLine($"<title>{WebUtility.HtmlEncode(handle + "'s Posts")}</title>");
+    sb.AppendLine($"<link>https://rss-reader-production-e719.up.railway.app/api/feed/{WebUtility.HtmlEncode(handle)}</link>");
+    sb.AppendLine($"<description>RSS feed for {WebUtility.HtmlEncode(handle)}</description>");
+
+    foreach (var post in posts)
+    {
+        sb.AppendLine("<item>");
+        sb.AppendLine($"<title>{WebUtility.HtmlEncode(post.Title)}</title>");
+        sb.AppendLine($"<description>{WebUtility.HtmlEncode(post.Content)}</description>");
+        sb.AppendLine($"<pubDate>{post.PublishedAt:r}</pubDate>");
+        sb.AppendLine($"<guid>{post.Id}</guid>");
+        sb.AppendLine("</item>");
+    }
+
+    sb.AppendLine("</channel>");
+    sb.AppendLine("</rss>");
+
+    return Results.Content(sb.ToString(), "application/rss+xml", Encoding.UTF8);
 });
 
 app.Run();

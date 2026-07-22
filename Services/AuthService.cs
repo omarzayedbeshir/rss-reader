@@ -34,10 +34,21 @@ public class AuthService
         if (exists is not null)
             throw new InvalidOperationException("Email already registered.");
 
+        var baseHandle = GenerateBaseHandle(email);
+        var handle = baseHandle;
+        var suffix = 0;
+        while (await conn.QueryFirstOrDefaultAsync<string>(
+            "SELECT id FROM users WHERE handle = @Handle",
+            new { Handle = handle }) is not null)
+        {
+            suffix++;
+            handle = $"{baseHandle}-{suffix:X3}";
+        }
+
         await conn.ExecuteAsync(
-            "INSERT INTO users (id, email, password_hash, email_verified, verification_token) " +
-            "VALUES (@Id, @Email, @PasswordHash, 0, @VerificationToken)",
-            new { Id = userId, Email = normalizedEmail, PasswordHash = passwordHash, VerificationToken = verificationToken });
+            "INSERT INTO users (id, email, password_hash, email_verified, verification_token, handle) " +
+            "VALUES (@Id, @Email, @PasswordHash, 0, @VerificationToken, @Handle)",
+            new { Id = userId, Email = normalizedEmail, PasswordHash = passwordHash, VerificationToken = verificationToken, Handle = handle });
 
         try
         {
@@ -57,7 +68,7 @@ public class AuthService
 
         using var conn = _db.OpenConnection();
         var row = await conn.QueryFirstOrDefaultAsync(
-            "SELECT id, email, password_hash AS passwordhash, email_verified AS emailverified FROM users WHERE email = @Email",
+            "SELECT id, email, password_hash AS passwordhash, email_verified AS emailverified, handle FROM users WHERE email = @Email",
             new { Email = email.Trim().ToLowerInvariant() });
 
         if (row is null)
@@ -81,7 +92,7 @@ public class AuthService
             "INSERT INTO sessions (id, user_id, token, expires_at) VALUES (@Id, @UserId, @Token, @ExpiresAt)",
             new { Id = sessionId, UserId = userId, Token = token, ExpiresAt = expiresAt });
 
-        return new AuthResponse(token, new UserResponse(userId, userEmail, emailVerified));
+        return new AuthResponse(token, new UserResponse(userId, userEmail, emailVerified, (string)row.handle ?? ""));
     }
 
     public async Task VerifyEmailAsync(string verificationToken)
@@ -141,7 +152,7 @@ public class AuthService
     {
         using var conn = _db.OpenConnection();
         var row = await conn.QueryFirstOrDefaultAsync(
-            "SELECT id, email, email_verified AS emailverified FROM users WHERE id = @UserId",
+            "SELECT id, email, email_verified AS emailverified, handle FROM users WHERE id = @UserId",
             new { UserId = userId });
 
         if (row is null) return null;
@@ -150,7 +161,15 @@ public class AuthService
         {
             Id = row.id,
             Email = row.email,
-            EmailVerified = (long)row.emailverified != 0
+            EmailVerified = (long)row.emailverified != 0,
+            Handle = (string)row.handle ?? ""
         };
+    }
+
+    private static string GenerateBaseHandle(string email)
+    {
+        var baseHandle = email.Split('@')[0].ToLowerInvariant();
+        baseHandle = System.Text.RegularExpressions.Regex.Replace(baseHandle, "[^a-z0-9_-]", "");
+        return string.IsNullOrEmpty(baseHandle) ? "user" : baseHandle;
     }
 }
