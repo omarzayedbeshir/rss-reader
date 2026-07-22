@@ -189,7 +189,7 @@ public class FeedStorageService
             "VALUES (@Id, @Email, '', 0, datetime('now'))",
             new { Id = anonymousId, Email = $"anon_{anonymousId}@demo.local" });
 
-        _ = AddDefaultFeedsAsync(anonymousId);
+        await AddDefaultFeedsAsync(anonymousId);
         return anonymousId;
     }
 
