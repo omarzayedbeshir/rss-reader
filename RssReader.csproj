@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
-    <RollForward>LatestMinor</RollForward>
+    <RollForward>LatestMajor</RollForward>
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
 

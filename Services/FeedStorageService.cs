@@ -6,11 +6,15 @@ namespace RssReader.Services;
 
 public class FeedStorageService
 {
-    private readonly DatabaseService _db;
+    private static readonly string[] DefaultFeeds = ["https://feeds.bbci.co.uk/news/rss.xml"];
 
-    public FeedStorageService(DatabaseService db)
+    private readonly DatabaseService _db;
+    private readonly FeedFetchService _fetchService;
+
+    public FeedStorageService(DatabaseService db, FeedFetchService fetchService)
     {
         _db = db;
+        _fetchService = fetchService;
     }
 
     public async Task<List<Feed>> GetAllFeedsAsync(string userId, bool bookmarksOnly = false)
@@ -184,7 +188,25 @@ public class FeedStorageService
             "INSERT INTO users (id, email, password_hash, email_verified, last_accessed_at) " +
             "VALUES (@Id, @Email, '', 0, datetime('now'))",
             new { Id = anonymousId, Email = $"anon_{anonymousId}@demo.local" });
+
+        _ = AddDefaultFeedsAsync(anonymousId);
         return anonymousId;
+    }
+
+    private async Task AddDefaultFeedsAsync(string userId)
+    {
+        foreach (var url in DefaultFeeds)
+        {
+            try
+            {
+                var feed = await _fetchService.FetchFeedAsync(url);
+                await AddFeedAsync(feed, userId);
+            }
+            catch
+            {
+                // ignore failed feed
+            }
+        }
     }
 
     public async Task<List<Article>> GetTodayArticlesAsync(string userId)
