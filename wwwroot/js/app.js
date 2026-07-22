@@ -67,7 +67,6 @@ const elements = {
     dailyDigest: document.getElementById('daily-digest'),
     digestContent: document.querySelector('.digest-content'),
     refreshAllBtn: document.getElementById('refresh-all-btn'),
-    addFeedBtn: document.getElementById('add-feed-btn'),
     addFeedForm: document.getElementById('add-feed-form'),
     feedForm: document.getElementById('feed-form'),
     feedUrlInput: document.getElementById('feed-url'),
@@ -409,7 +408,6 @@ async function init() {
     document.getElementById('signout-btn').textContent = t('signOut');
     document.getElementById('refresh-all-btn').textContent = t('refreshAll');
     document.getElementById('refresh-all-btn').title = t('refreshAll');
-    document.getElementById('add-feed-btn').textContent = t('addFeed');
     document.getElementById('feed-url').placeholder = t('feedUrlPlaceholder');
     document.getElementById('loading').textContent = t('loadingArticles');
     document.getElementById('prev-page-btn').textContent = t('prev');
@@ -441,21 +439,16 @@ async function init() {
     elements.prevPageBtn.addEventListener('click', () => fetchFeeds(state.currentPage - 1));
     elements.nextPageBtn.addEventListener('click', () => fetchFeeds(state.currentPage + 1));
 
-    elements.addFeedBtn.addEventListener('click', () => {
-        elements.addFeedForm.classList.remove('hidden');
-        elements.feedUrlInput.focus();
-    });
-
-    elements.cancelAddBtn.addEventListener('click', () => {
-        elements.addFeedForm.classList.add('hidden');
-        elements.feedUrlInput.value = '';
-    });
-
     elements.feedForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const url = elements.feedUrlInput.value.trim();
         if (!url) return;
         await addFeed(url);
+        elements.addFeedForm.classList.add('hidden');
+        elements.feedUrlInput.value = '';
+    });
+
+    elements.cancelAddBtn.addEventListener('click', () => {
         elements.addFeedForm.classList.add('hidden');
         elements.feedUrlInput.value = '';
     });
@@ -688,6 +681,22 @@ async function toggleBookmark(articleId) {
 function renderFeeds() {
     elements.feedList.innerHTML = '';
 
+    var addLi = document.createElement('li');
+    addLi.className = 'feed-item feed-item-add';
+    addLi.setAttribute('role', 'button');
+    addLi.setAttribute('tabindex', '0');
+    var addTitle = document.createElement('span');
+    addTitle.className = 'feed-item-title';
+    addTitle.textContent = '+';
+    addLi.appendChild(addTitle);
+    addLi.addEventListener('click', function () {
+        elements.addFeedForm.classList.toggle('hidden');
+        if (!elements.addFeedForm.classList.contains('hidden')) {
+            elements.feedUrlInput.focus();
+        }
+    });
+    elements.feedList.appendChild(addLi);
+
     var bmLi = document.createElement('li');
     bmLi.className = 'feed-item feed-item-bookmarks';
     bmLi.setAttribute('role', 'button');
@@ -914,6 +923,10 @@ function showDiscover() {
         });
         html += '</div>';
     });
+    html += '<div class="discover-category">';
+    html += '<div class="discover-category-title">' + t('readers') + '</div>';
+    html += '<div id="discover-users-section"><span class="discover-users-loading">Loading...</span></div>';
+    html += '</div>';
     elements.discoverContent.innerHTML = html;
     elements.discoverOverlay.classList.remove('hidden');
     elements.discoverContent.querySelectorAll('.discover-feed-sub').forEach(function (btn) {
@@ -925,10 +938,73 @@ function showDiscover() {
             addFeed(url);
         });
     });
+    loadDiscoverUsers(subscribed);
 }
 
 function hideDiscover() {
     elements.discoverOverlay.classList.add('hidden');
+}
+
+async function loadDiscoverUsers(subscribed) {
+    var section = document.getElementById('discover-users-section');
+    if (!section) return;
+    try {
+        var resp = await apiFetch('/api/users/discover');
+        var users = await resp.json();
+        renderDiscoverUsers(users, subscribed);
+    } catch (err) {
+        section.innerHTML = '<p class="discover-users-error">' + tError(err.message) + '</p>';
+    }
+}
+
+function renderDiscoverUsers(users, subscribed) {
+    var section = document.getElementById('discover-users-section');
+    if (!section) return;
+
+    if (users.length === 0) {
+        if (state.token) {
+            section.innerHTML = '<p class="discover-users-empty">' + t('noSimilarUsers') + '</p>';
+        } else {
+            section.innerHTML = '<p class="discover-users-empty">' + t('noReaders') + '</p>';
+        }
+        return;
+    }
+
+    var html = '';
+    users.forEach(function (user) {
+        var feedUrl = window.location.origin + '/api/feed/' + user.handle;
+        var isSub = subscribed[feedUrl];
+
+        var parts = [];
+        if (user.sharedFeeds > 0) {
+            parts.push(user.sharedFeeds + ' ' + t('feedsInCommon'));
+        }
+        parts.push(user.postCount + ' ' + t('posts'));
+        var meta = parts.join(' \u00b7 ');
+
+        html += '<div class="discover-user-item">';
+        html += '<div class="discover-user-info">';
+        html += '<span class="discover-user-handle">@' + user.handle + '</span>';
+        html += '<span class="discover-user-meta">' + meta + '</span>';
+        html += '</div>';
+        if (isSub) {
+            html += '<span class="btn discover-user-subscribed" disabled>' + t('subscribed') + '</span>';
+        } else {
+            html += '<button class="btn btn-primary discover-user-sub" data-url="' + feedUrl + '">' + t('subscribe') + '</button>';
+        }
+        html += '</div>';
+    });
+
+    section.innerHTML = html;
+    section.querySelectorAll('.discover-user-sub').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var url = btn.getAttribute('data-url');
+            btn.textContent = t('subscribed');
+            btn.disabled = true;
+            btn.className = 'btn discover-user-subscribed';
+            addFeed(url);
+        });
+    });
 }
 
 async function loadPosts() {
@@ -993,7 +1069,7 @@ function renderPosts() {
     });
 }
 
-function showPostEditor(post) {
+async function showPostEditor(post) {
     state.showingPosts = true;
     elements.articleList.innerHTML = '';
     elements.loading.classList.add('hidden');
@@ -1015,6 +1091,12 @@ function showPostEditor(post) {
         state.editingPostId = null;
     }
     elements.postTitleInput.focus();
+    try {
+        var resp = await apiFetch('/api/posts');
+        var data = await resp.json();
+        state.posts = data || [];
+        renderPosts();
+    } catch (err) {}
 }
 
 function hidePostEditor() {

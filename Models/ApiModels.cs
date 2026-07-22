@@ -35,3 +35,11 @@ public record ResendVerificationRequest(string Email);
 public record CreatePostRequest(string Title, string Content);
 public record UpdatePostRequest(string Title, string Content);
 public record PostResponse(string Id, string Title, string Content, DateTime PublishedAt, DateTime UpdatedAt);
+
+public class UserDiscoveryResponse
+{
+    public string Handle { get; set; } = string.Empty;
+    public int SharedFeeds { get; set; }
+    public int TotalFeeds { get; set; }
+    public int PostCount { get; set; }
+}

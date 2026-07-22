@@ -397,6 +397,14 @@ postApi.MapDelete("/{id}", async (string id, HttpContext context,
     return Results.Ok(new { deleted = true });
 });
 
+app.MapGet("/api/users/discover", async (HttpContext context, AuthService auth,
+    FeedStorageService storage) =>
+{
+    var userId = await GetUserId(context, auth, storage, requireAuth: false);
+    var users = await storage.DiscoverUsersAsync(userId, 5);
+    return Results.Ok(users);
+});
+
 app.MapGet("/api/feed/{handle}", async (string handle, FeedStorageService storage) =>
 {
     var userId = await storage.GetUserIdByHandleAsync(handle);

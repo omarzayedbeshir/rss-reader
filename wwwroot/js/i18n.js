@@ -50,6 +50,11 @@ const translations = {
         copyUrl: "Copy",
         urlCopied: "Copied!",
         noPosts: "No posts yet.",
+        readers: "Readers",
+        feedsInCommon: "feeds in common",
+        posts: "posts",
+        noSimilarUsers: "Subscribe to feeds to discover readers like you.",
+        noReaders: "No readers found yet.",
         errors: {
             "Invalid email or password.": "Invalid email or password.",
             "Email not verified. Check your inbox or request a new verification email.": "Email not verified. Check your inbox or request a new verification email.",
@@ -112,6 +117,11 @@ const translations = {
         copyUrl: "\u0646\u0633\u062e",
         urlCopied: "\u062a\u0645 \u0627\u0644\u0646\u0633\u062e!",
         noPosts: "\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0646\u0634\u0648\u0631\u0627\u062a \u0628\u0639\u062f.",
+        readers: "\u0627\u0644\u0642\u0631\u0627\u0621",
+        feedsInCommon: "\u062a\u063a\u0630\u064a\u0629 \u0645\u0634\u062a\u0631\u0643\u0629",
+        posts: "\u0645\u0646\u0634\u0648\u0631",
+        noSimilarUsers: "\u0627\u0634\u062a\u0631\u0643 \u0641\u064a \u062a\u063a\u0630\u064a\u0627\u062a \u0644\u0627\u0643\u062a\u0634\u0627\u0641 \u0642\u0631\u0627\u0621 \u0645\u0634\u0627\u0628\u0647\u064a\u0646 \u0644\u0643.",
+        noReaders: "\u0644\u0627 \u064a\u0648\u062c\u062f \u0642\u0631\u0627\u0621 \u0628\u0639\u062f.",
         errors: {
             "Invalid email or password.": "\u0628\u0631\u064a\u062f \u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a \u0623\u0648 \u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u063a\u064a\u0631 \u0635\u062d\u064a\u062d\u0629.",
             "Email not verified. Check your inbox or request a new verification email.": "\u0644\u0645 \u064a\u062a\u0645 \u0627\u0644\u062a\u062d\u0642\u0642 \u0645\u0646 \u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a. \u062a\u062d\u0642\u0642 \u0645\u0646 \u0635\u0646\u062f\u0648\u0642 \u0627\u0644\u0648\u0627\u0631\u062f \u0623\u0648 \u0627\u0637\u0644\u0628 \u0628\u0631\u064a\u062f \u062a\u062d\u0642\u0642 \u062c\u062f\u064a\u062f.",

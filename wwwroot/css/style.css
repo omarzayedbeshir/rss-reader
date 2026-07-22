@@ -180,8 +180,7 @@ body {
 }
 
 .add-feed-form {
-    padding: 12px 0;
-    margin-bottom: 16px;
+    padding: 8px 0 0 0;
 }
 
 .add-feed-form form {
@@ -400,6 +399,28 @@ body {
     color: #ffb3b3;
 }
 
+.feed-item-add {
+    background: var(--color-accent);
+    color: #fff;
+    font-weight: 700;
+    justify-content: center;
+    min-width: 32px;
+    padding: 6px 8px;
+}
+
+.feed-item-add:hover {
+    background: #1443b0;
+}
+
+.feed-item-add .feed-item-title {
+    max-width: none;
+    font-size: 1.1rem;
+}
+
+#refresh-all-btn {
+    margin: 4px 0 8px 0;
+}
+
 .content {
     min-height: 50vh;
 }
@@ -511,6 +532,68 @@ body {
 }
 
 .discover-feed-subscribed {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    padding: 4px 14px;
+    border: 1px solid var(--color-divider);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: default;
+    opacity: 0.65;
+}
+
+.discover-users-loading {
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    padding: 8px 0;
+}
+
+.discover-users-empty,
+.discover-users-error {
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    padding: 8px 0;
+    margin: 0;
+}
+
+.discover-user-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border: 1px solid var(--color-divider);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    gap: 12px;
+}
+
+.discover-user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.discover-user-handle {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.discover-user-meta {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+}
+
+.discover-user-sub {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    padding: 4px 14px;
+}
+
+.discover-user-subscribed {
     flex-shrink: 0;
     font-size: 0.75rem;
     padding: 4px 14px;

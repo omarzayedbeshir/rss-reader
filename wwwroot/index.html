@@ -44,25 +44,22 @@
                 <div class="header-actions">
                     <span id="current-user" class="current-user"></span>
                     <button id="signout-btn" class="btn btn-secondary">Sign Out</button>
-                    <button id="refresh-all-btn" class="btn btn-secondary" title="Refresh all feeds">Refresh All</button>
                     <button id="new-post-header-btn" class="btn btn-primary hidden">New Post</button>
                     <button id="discover-btn" class="btn btn-discover">&#10022; Discover</button>
-                    <button id="add-feed-btn" class="btn btn-primary">Add Feed</button>
                 </div>
             </header>
-
-            <div id="add-feed-form" class="add-feed-form hidden">
-                <form id="feed-form">
-                    <label for="feed-url" class="visually-hidden">Feed URL</label>
-                    <input type="url" id="feed-url" class="input" placeholder="https://example.com/rss" required>
-                    <button type="submit" class="btn btn-primary">Subscribe</button>
-                    <button type="button" id="cancel-add-btn" class="btn btn-secondary">Cancel</button>
-                </form>
-            </div>
 
             <div class="layout">
                 <aside class="feed-bar" id="sidebar">
                     <ul id="feed-list" class="feed-list"></ul>
+                    <div id="add-feed-form" class="add-feed-form hidden">
+                        <form id="feed-form">
+                            <label for="feed-url" class="visually-hidden">Feed URL</label>
+                            <input type="url" id="feed-url" class="input" placeholder="https://example.com/rss" required>
+                            <button type="submit" class="btn btn-primary">Subscribe</button>
+                            <button type="button" id="cancel-add-btn" class="btn btn-secondary">Cancel</button>
+                        </form>
+                    </div>
                 </aside>
 
                 <main class="content" id="content">
@@ -76,6 +73,7 @@
                         <span class="summarize-banner-text"></span>
                         <button id="summarize-today-btn" class="btn btn-primary">Summarize Today</button>
                     </div>
+                    <button id="refresh-all-btn" class="btn btn-secondary" title="Refresh all feeds">Refresh All</button>
                     <div id="empty" class="empty hidden">
                         <p>No feeds subscribed yet.</p>
                         <p>Click "Add Feed" to get started.</p>

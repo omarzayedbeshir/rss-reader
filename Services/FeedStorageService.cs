@@ -329,6 +329,38 @@ public class FeedStorageService
         return candidate;
     }
 
+    public async Task<List<UserDiscoveryResponse>> DiscoverUsersAsync(string? userId, int limit = 5)
+    {
+        using var conn = _db.OpenConnection();
+
+        if (userId is not null)
+        {
+            return (await conn.QueryAsync<UserDiscoveryResponse>(@"
+                SELECT u.handle,
+                       COUNT(DISTINCT f2.feed_url) AS SharedFeeds,
+                       (SELECT COUNT(*) FROM feeds WHERE user_id = u.id) AS TotalFeeds,
+                       (SELECT COUNT(*) FROM posts WHERE user_id = u.id) AS PostCount
+                FROM users u
+                JOIN feeds f1 ON f1.user_id = @UserId
+                JOIN feeds f2 ON f2.user_id = u.id AND f2.feed_url = f1.feed_url
+                WHERE u.id != @UserId AND u.handle IS NOT NULL
+                GROUP BY u.id
+                ORDER BY SharedFeeds DESC
+                LIMIT @Limit",
+                new { UserId = userId, Limit = limit })).AsList();
+        }
+
+        return (await conn.QueryAsync<UserDiscoveryResponse>(@"
+            SELECT u.handle, 0 AS SharedFeeds, 0 AS TotalFeeds,
+                   (SELECT COUNT(*) FROM posts WHERE user_id = u.id) AS PostCount
+            FROM users u
+            WHERE u.handle IS NOT NULL
+              AND EXISTS (SELECT 1 FROM posts WHERE user_id = u.id)
+            ORDER BY PostCount DESC
+            LIMIT @Limit",
+            new { Limit = limit })).AsList();
+    }
+
     private static async Task InsertArticlesAsync(SqliteConnection conn, List<Article> articles, SqliteTransaction tx)
     {
         if (articles.Count == 0) return;
