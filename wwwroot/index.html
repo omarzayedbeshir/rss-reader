@@ -46,6 +46,7 @@
                     <button id="signout-btn" class="btn btn-secondary">Sign Out</button>
                     <button id="refresh-all-btn" class="btn btn-secondary" title="Refresh all feeds">Refresh All</button>
                     <button id="new-post-header-btn" class="btn btn-primary hidden">New Post</button>
+                    <button id="discover-btn" class="btn btn-discover">&#10022; Discover</button>
                     <button id="add-feed-btn" class="btn btn-primary">Add Feed</button>
                 </div>
             </header>
@@ -112,6 +113,16 @@
                     </div>
                 </main>
             </div>
+        </div>
+    </div>
+
+    <div id="discover-overlay" class="discover-overlay hidden">
+        <div class="discover-panel">
+            <div class="discover-panel-header">
+                <h2 class="discover-panel-title"></h2>
+                <button id="discover-close" class="btn-link discover-close">&times;</button>
+            </div>
+            <div id="discover-content" class="discover-content"></div>
         </div>
     </div>
 

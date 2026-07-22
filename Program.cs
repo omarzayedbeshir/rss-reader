@@ -173,6 +173,36 @@ feedApi.MapGet("/", async (HttpContext context, AuthService auth, FeedStorageSer
 
     var feeds = await storage.GetAllFeedsAsync(userId, bookmarked == true);
     var digest = bookmarked == true ? null : await storage.GetDailyDigestAsync(userId);
+
+    if (bookmarked != true)
+    {
+        var posts = await storage.GetUserPostsAsync(userId);
+        if (posts.Count > 0)
+        {
+            var postFeed = new Feed
+            {
+                Id = "__posts__",
+                Title = "My Posts",
+                FeedUrl = "",
+                SiteUrl = "",
+                Description = "",
+                LastRefreshed = DateTime.UtcNow,
+                Articles = posts.Select(p => new Article
+                {
+                    Id = p.Id,
+                    Title = p.Title,
+                    Url = "",
+                    Summary = p.Content,
+                    Published = p.PublishedAt,
+                    FeedId = "__posts__",
+                    EnclosureUrl = "",
+                    EnclosureType = ""
+                }).ToList()
+            };
+            feeds.Insert(0, postFeed);
+        }
+    }
+
     var allArticles = feeds
         .SelectMany(f => f.Articles.Select(a => new ArticleResponse(
             a.Id, a.Title, a.Url, a.Summary, a.Published, a.FeedId,

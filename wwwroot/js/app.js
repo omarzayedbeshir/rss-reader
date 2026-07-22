@@ -1,3 +1,25 @@
+const discoverFeeds = [
+    { category: "News", feeds: [
+        { title: "BBC News", url: "https://feeds.bbci.co.uk/news/rss.xml" },
+        { title: "The Guardian", url: "https://www.theguardian.com/world/rss" },
+        { title: "NPR", url: "https://feeds.npr.org/1001/rss.xml" },
+        { title: "NHK World", url: "https://www3.nhk.or.jp/rss/news/cat0.xml" }
+    ]},
+    { category: "Technology", feeds: [
+        { title: "Hacker News", url: "https://hnrss.org/frontpage" },
+        { title: "The Verge", url: "https://www.theverge.com/rss/index.xml" },
+        { title: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index" },
+        { title: "Wired", url: "https://www.wired.com/feed/rss" },
+        { title: "TechCrunch", url: "https://techcrunch.com/feed/" },
+        { title: "MIT Technology Review", url: "https://www.technologyreview.com/feed/" }
+    ]},
+    { category: "\u0627\u0644\u0639\u0631\u0628\u064a\u0629", rtl: true, feeds: [
+        { title: "\u0628\u064A \u0628\u064A \u0633\u064A \u0639\u0631\u0628\u064A", url: "https://feeds.bbci.co.uk/arabic/rss.xml" },
+        { title: "\u0641\u0631\u0627\u0646\u0633 24 \u0639\u0631\u0628\u064A", url: "https://www.france24.com/ar/rss" },
+        { title: "CNN \u0627\u0644\u0639\u0631\u0628\u064A\u0629", url: "https://arabic.cnn.com/rss" }
+    ]}
+];
+
 const state = {
     feeds: [],
     articles: [],
@@ -70,7 +92,12 @@ const elements = {
     feedUrlSection: document.getElementById('feed-url-section'),
     feedUrlDisplay: document.getElementById('feed-url-display'),
     copyFeedUrlBtn: document.getElementById('copy-feed-url-btn'),
-    feedUrlLabel: document.querySelector('.feed-url-label')
+    feedUrlLabel: document.querySelector('.feed-url-label'),
+    discoverOverlay: document.getElementById('discover-overlay'),
+    discoverContent: document.getElementById('discover-content'),
+    discoverClose: document.getElementById('discover-close'),
+    discoverTitle: document.querySelector('.discover-panel-title'),
+    discoverBtn: document.getElementById('discover-btn')
 };
 
 let authMode = 'signin';
@@ -394,6 +421,8 @@ async function init() {
     if (elements.postContentInput) elements.postContentInput.placeholder = t('postContent');
     if (elements.newPostBtn) elements.newPostBtn.textContent = t('newPost');
     if (elements.newPostHeaderBtn) elements.newPostHeaderBtn.textContent = t('newPost');
+    if (elements.discoverTitle) elements.discoverTitle.textContent = t('discover');
+    if (elements.discoverBtn) elements.discoverBtn.innerHTML = '&#10022; ' + t('discover');
     if (elements.cancelPostBtn) elements.cancelPostBtn.textContent = t('cancel');
 
     var submitBtn = elements.postForm ? elements.postForm.querySelector('.btn-primary') : null;
@@ -455,6 +484,18 @@ async function init() {
             setTimeout(function () {
                 elements.copyFeedUrlBtn.textContent = t('copyUrl');
             }, 2000);
+        });
+    }
+
+    if (elements.discoverBtn) {
+        elements.discoverBtn.addEventListener('click', showDiscover);
+    }
+    if (elements.discoverClose) {
+        elements.discoverClose.addEventListener('click', hideDiscover);
+    }
+    if (elements.discoverOverlay) {
+        elements.discoverOverlay.addEventListener('click', function (e) {
+            if (e.target === elements.discoverOverlay) hideDiscover();
         });
     }
 
@@ -647,42 +688,6 @@ async function toggleBookmark(articleId) {
 function renderFeeds() {
     elements.feedList.innerHTML = '';
 
-    if (state.token) {
-        var postsLi = document.createElement('li');
-        postsLi.className = 'feed-item feed-item-posts';
-        postsLi.setAttribute('role', 'button');
-        postsLi.setAttribute('tabindex', '0');
-        var postsTitle = document.createElement('span');
-        postsTitle.className = 'feed-item-title';
-        postsTitle.textContent = t('myPosts');
-        postsLi.appendChild(postsTitle);
-        if (state.showingPosts) postsLi.classList.add('active');
-        postsLi.addEventListener('click', function () {
-            state.showingPosts = !state.showingPosts;
-            if (state.showingPosts) {
-                state.selectedFeedId = null;
-                state.showingBookmarks = false;
-                loadPosts();
-            } else {
-                fetchFeeds(1);
-            }
-        });
-        postsLi.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                state.showingPosts = !state.showingPosts;
-                if (state.showingPosts) {
-                    state.selectedFeedId = null;
-                    state.showingBookmarks = false;
-                    loadPosts();
-                } else {
-                    fetchFeeds(1);
-                }
-            }
-        });
-        elements.feedList.appendChild(postsLi);
-    }
-
     var bmLi = document.createElement('li');
     bmLi.className = 'feed-item feed-item-bookmarks';
     bmLi.setAttribute('role', 'button');
@@ -720,6 +725,11 @@ function renderFeeds() {
         titleEl.textContent = feed.title || feed.feedUrl;
         countEl.textContent = feed.articles ? feed.articles.length : 0;
 
+        if (feed.id === '__posts__') {
+            refreshBtn.style.display = 'none';
+            removeBtn.style.display = 'none';
+        }
+
         if (isRtl(feed.title)) {
             li.setAttribute('dir', 'rtl');
         }
@@ -738,6 +748,13 @@ function renderFeeds() {
 
         li.addEventListener('click', (e) => {
             if (e.target === refreshBtn || e.target === removeBtn) return;
+            if (feed.id === '__posts__') {
+                state.showingPosts = true;
+                state.selectedFeedId = null;
+                state.showingBookmarks = false;
+                loadPosts();
+                return;
+            }
             toggleFeedSelection(feed);
         });
 
@@ -745,6 +762,13 @@ function renderFeeds() {
             if (e.target === refreshBtn || e.target === removeBtn) return;
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
+                if (feed.id === '__posts__') {
+                    state.showingPosts = true;
+                    state.selectedFeedId = null;
+                    state.showingBookmarks = false;
+                    loadPosts();
+                    return;
+                }
                 toggleFeedSelection(feed);
             }
         });
@@ -769,7 +793,7 @@ function renderArticles() {
     const articles = state.articles;
 
     if (articles.length === 0) {
-        elements.empty.innerHTML = '<p>' + t('noFeeds') + '</p><p>' + t('clickAddFeed') + '</p>';
+        elements.empty.innerHTML = '<p>' + t('noFeeds') + '</p><p>' + t('clickDiscoverHint') + '</p>';
         elements.empty.classList.remove('hidden');
         return;
     }
@@ -790,20 +814,29 @@ function renderArticles() {
         badgeEl.textContent = feedTitle;
         dateEl.textContent = formatDate(article.published);
 
-        const bookmarkBtn = template.querySelector('.bookmark-btn');
-        bookmarkBtn.textContent = article.isBookmarked ? '\u2605' : '\u2606';
-        bookmarkBtn.title = article.isBookmarked ? 'Remove bookmark' : 'Bookmark';
-        bookmarkBtn.addEventListener('click', function (e) {
-            e.preventDefault();
-            toggleBookmark(article.id).then(function (bookmarked) {
-                article.isBookmarked = bookmarked;
-                bookmarkBtn.textContent = bookmarked ? '\u2605' : '\u2606';
-                bookmarkBtn.title = bookmarked ? 'Remove bookmark' : 'Bookmark';
+        var bookmarkBtn = template.querySelector('.bookmark-btn');
+        if (article.feedId === '__posts__') {
+            bookmarkBtn.style.display = 'none';
+        } else {
+            bookmarkBtn.textContent = article.isBookmarked ? '\u2605' : '\u2606';
+            bookmarkBtn.title = article.isBookmarked ? 'Remove bookmark' : 'Bookmark';
+            bookmarkBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                toggleBookmark(article.id).then(function (bookmarked) {
+                    article.isBookmarked = bookmarked;
+                    bookmarkBtn.textContent = bookmarked ? '\u2605' : '\u2606';
+                    bookmarkBtn.title = bookmarked ? 'Remove bookmark' : 'Bookmark';
+                });
             });
-        });
+        }
 
         titleLinkEl.textContent = article.title;
-        titleLinkEl.href = article.url;
+        if (article.feedId === '__posts__') {
+            titleLinkEl.removeAttribute('href');
+            titleLinkEl.style.cursor = 'default';
+        } else {
+            titleLinkEl.href = article.url;
+        }
 
         const audioEl = template.querySelector('.article-audio');
         if (article.enclosureUrl) {
@@ -854,6 +887,48 @@ function renderFeedUrl() {
     } else {
         elements.feedUrlSection.classList.add('hidden');
     }
+}
+
+function subscribedUrlSet() {
+    var set = {};
+    state.feeds.forEach(function (f) { set[f.feedUrl] = true; });
+    return set;
+}
+
+function showDiscover() {
+    var html = '';
+    var subscribed = subscribedUrlSet();
+    discoverFeeds.forEach(function (cat) {
+        html += '<div class="discover-category"' + (cat.rtl ? ' dir="rtl"' : '') + '>';
+        html += '<div class="discover-category-title">' + cat.category + '</div>';
+        cat.feeds.forEach(function (sf) {
+            var isSub = subscribed[sf.url];
+            html += '<div class="discover-feed-item">';
+            html += '<span class="discover-feed-name">' + sf.title + '</span>';
+            if (isSub) {
+                html += '<span class="btn discover-feed-subscribed" disabled>' + t('subscribed') + '</span>';
+            } else {
+                html += '<button class="btn btn-primary discover-feed-sub" data-url="' + sf.url + '">' + t('subscribe') + '</button>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+    });
+    elements.discoverContent.innerHTML = html;
+    elements.discoverOverlay.classList.remove('hidden');
+    elements.discoverContent.querySelectorAll('.discover-feed-sub').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var url = btn.getAttribute('data-url');
+            btn.textContent = t('subscribed');
+            btn.disabled = true;
+            btn.className = 'btn discover-feed-subscribed';
+            addFeed(url);
+        });
+    });
+}
+
+function hideDiscover() {
+    elements.discoverOverlay.classList.add('hidden');
 }
 
 async function loadPosts() {
